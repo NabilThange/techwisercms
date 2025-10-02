@@ -77,7 +77,7 @@ export function PasswordGate({ children }: { children: React.ReactNode }) {
       <div className="min-h-screen w-full flex items-center justify-center bg-background p-4">
         <div className="w-full max-w-md space-y-6">
           <div className="text-center space-y-2">
-            <h1 className="text-3xl font-display tracking-tight text-foreground">M.O.N.K.Y OS</h1>
+            <h1 className="text-3xl font-display tracking-tight text-foreground">TECH.WISER.</h1>
             <p className="text-muted-foreground">Enter password to access the system</p>
           </div>
 
