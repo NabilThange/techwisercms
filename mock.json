@@ -115,14 +115,14 @@
         "sales": 520000,
         "coffee": 120000
       },
-      { "date": "2024", "spendings": 380000, "sales": 820000, "coffee": 200000 }
+      { "date": "2025", "spendings": 380000, "sales": 820000, "coffee": 200000 }
     ]
   },
   "rebelsRanking": [
     {
       "id": 1,
-      "name": "KRIMSON",
-      "handle": "@KRIMSON",
+      "name": "Nabil",
+      "handle": "@Nabil",
       "streak": "2 WEEKS STREAK 🔥",
       "points": 148,
       "avatar": "/avatars/user_krimson.png",
@@ -178,17 +178,17 @@
     {
       "id": "notif-1",
       "title": "PAYMENT RECEIVED",
-      "message": "Your payment to Rampant Studio has been processed successfully.",
-      "timestamp": "2024-07-10T13:39:00Z",
+      "message": "Your payment to Nabil Studio has been processed successfully.",
+      "timestamp": "2025-07-10T13:39:00Z",
       "type": "success",
       "read": false,
       "priority": "medium"
     },
     {
       "id": "notif-2",
-      "title": "INTRO: JOYCO STUDIO AND V0",
-      "message": "About us - We're a healthcare company focused on accessibility and innovation.",
-      "timestamp": "2024-07-10T13:35:00Z",
+      "title": "INTRO: Nabil STUDIO",
+      "message": "About us - We're a Design company focused on accessibility and innovation.",
+      "timestamp": "2025-07-10T13:35:00Z",
       "type": "info",
       "read": false,
       "priority": "low"
@@ -197,23 +197,23 @@
       "id": "notif-3",
       "title": "SYSTEM UPDATE",
       "message": "Security patches have been applied to all guard bots.",
-      "timestamp": "2024-07-10T12:15:00Z",
+      "timestamp": "2025-07-10T12:15:00Z",
       "type": "info",
       "read": true,
       "priority": "medium"
     },
     {
       "id": "notif-4",
-      "title": "FIREWALL ALERT",
-      "message": "Blocked 247 suspicious connection attempts in the last hour.",
-      "timestamp": "2024-07-10T11:45:00Z",
+      "title": "TECH ALERT",
+      "message": "Check out the latest things in tech.",
+      "timestamp": "2025-07-10T11:45:00Z",
       "type": "warning",
       "read": true,
       "priority": "high"
     }
   ],
   "widgetData": {
-    "location": "Buenos Aires, Argentina",
+    "location": "Mumbai, India",
     "timezone": "UTC-3",
     "temperature": "18°C",
     "weather": "Partly Cloudy",
