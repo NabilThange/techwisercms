@@ -277,10 +277,10 @@ function ListView(props: {
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={() => onAction(p.id, "edit")}>Edit</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => onAction(p.id, "duplicate")}>Duplicate</DropdownMenuItem>
+                    <DropdownMenuItem onSelect={(e) => onAction(p.id, "edit")}>Edit</DropdownMenuItem>
+                    <DropdownMenuItem onSelect={(e) => onAction(p.id, "duplicate")}>Duplicate</DropdownMenuItem>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={() => onAction(p.id, "delete")} className="text-destructive">
+                    <DropdownMenuItem onSelect={(e) => onAction(p.id, "delete")} className="text-destructive">
                       Delete
                     </DropdownMenuItem>
                   </DropdownMenuContent>
@@ -343,10 +343,10 @@ function GridView(props: {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={() => onAction(p.id, "edit")}>Edit</DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => onAction(p.id, "duplicate")}>Duplicate</DropdownMenuItem>
+                  <DropdownMenuItem onSelect={(e) => onAction(p.id, "edit")}>Edit</DropdownMenuItem>
+                  <DropdownMenuItem onSelect={(e) => onAction(p.id, "duplicate")}>Duplicate</DropdownMenuItem>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => onAction(p.id, "delete")} className="text-destructive">
+                  <DropdownMenuItem onSelect={(e) => onAction(p.id, "delete")} className="text-destructive">
                     Delete
                   </DropdownMenuItem>
                 </DropdownMenuContent>
