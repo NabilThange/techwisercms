@@ -10,7 +10,6 @@ export async function GET(request: Request) {
 
     // Get filter parameters
     const category = searchParams.get("category")
-    const brand = searchParams.get("brand")
     const search = searchParams.get("search")
     const featured = searchParams.get("featured")
     const inStock = searchParams.get("in_stock")
@@ -31,11 +30,6 @@ export async function GET(request: Request) {
           id,
           name,
           slug
-        ),
-        brands (
-          id,
-          name,
-          slug
         )
       `,
         { count: "exact" },
@@ -48,12 +42,9 @@ export async function GET(request: Request) {
       query = query.eq("category_id", category)
     }
 
-    if (brand && brand !== "all") {
-      query = query.eq("brand_id", brand)
-    }
-
     if (search) {
-      query = query.or(`title.ilike.%${search}%,description.ilike.%${search}%`)
+      // search in title/description/brand_name
+      query = query.or(`title.ilike.%${search}%,description.ilike.%${search}%,brand_name.ilike.%${search}%`)
     }
 
     if (featured === "true") {
@@ -111,28 +102,62 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Main product image is required" }, { status: 400 })
     }
 
+    if (!body.affiliate_url) {
+      return NextResponse.json({ error: "Affiliate URL is required" }, { status: 400 })
+    }
+    try {
+      new URL(body.affiliate_url)
+    } catch {
+      return NextResponse.json({ error: "Affiliate URL must be a valid URL" }, { status: 400 })
+    }
+
+    // Normalize images array to additional_images (array of URLs)
+    let additional_images: string[] | undefined
+    if (Array.isArray(body.images) && body.images.length > 0) {
+      if (typeof body.images[0] === "string") {
+        additional_images = body.images as string[]
+      } else {
+        additional_images = (body.images as Array<{ url: string }>).map((i) => i.url).filter(Boolean)
+      }
+    }
+
+    // Convert specs array to specifications object
+    let specifications: Record<string, string> | undefined
+    if (Array.isArray(body.specs) && body.specs.length > 0) {
+      specifications = {}
+      for (const spec of body.specs) {
+        if (spec?.key && spec?.value) specifications[spec.key] = spec.value
+      }
+    }
+
     // Generate unique slug
     const slug = generateSlug(body.title)
 
-    // Insert main product
+    // Insert product aligned to new schema
     const { data: product, error: productError } = await supabase
       .from("products")
       .insert({
         title: body.title,
-        slug: slug,
+        slug,
         short_description: body.short_description || null,
         description: body.description || null,
         price: Number.parseFloat(body.price),
         original_price: body.original_price ? Number.parseFloat(body.original_price) : null,
         currency: body.currency || "INR",
         main_image_url: body.main_image_url,
+        additional_images: additional_images || null,
         rating: body.rating || 0,
         review_count: 0,
         youtube_video_id: body.youtube_video_id || null,
         in_stock: body.in_stock !== false,
         featured: body.featured || false,
+        is_published: body.in_stock !== false, // publish if in stock by default
         category_id: body.category_id,
-        brand_id: body.brand_id || null,
+        brand_name: body.brand_name || null,
+        affiliate_url: body.affiliate_url,
+        specifications: specifications || null,
+        pros: Array.isArray(body.pros) ? body.pros : null,
+        cons: Array.isArray(body.cons) ? body.cons : null,
       })
       .select()
       .single()
@@ -143,82 +168,6 @@ export async function POST(request: Request) {
     }
 
     console.log("[v0] Product created:", product.id)
-
-    // Insert additional images
-    if (body.images && Array.isArray(body.images) && body.images.length > 0) {
-      const imageInserts = body.images.map((img: any, index: number) => ({
-        product_id: product.id,
-        image_url: img.url,
-        alt_text: img.alt_text || body.title,
-        display_order: index,
-      }))
-
-      const { error: imagesError } = await supabase.from("product_images").insert(imageInserts)
-
-      if (imagesError) {
-        console.error("[v0] Images insert error:", imagesError)
-      }
-    }
-
-    // Insert specifications
-    if (body.specs && Array.isArray(body.specs) && body.specs.length > 0) {
-      const specInserts = body.specs
-        .filter((spec: any) => spec.key && spec.value)
-        .map((spec: any, index: number) => ({
-          product_id: product.id,
-          spec_key: spec.key,
-          spec_value: spec.value,
-          display_order: index,
-        }))
-
-      if (specInserts.length > 0) {
-        const { error: specsError } = await supabase.from("product_specs").insert(specInserts)
-
-        if (specsError) {
-          console.error("[v0] Specs insert error:", specsError)
-        }
-      }
-    }
-
-    // Insert pros
-    if (body.pros && Array.isArray(body.pros) && body.pros.length > 0) {
-      const prosInserts = body.pros
-        .filter((pro: string) => pro.trim())
-        .map((pro: string, index: number) => ({
-          product_id: product.id,
-          content: pro.trim(),
-          type: "pro",
-          display_order: index,
-        }))
-
-      if (prosInserts.length > 0) {
-        const { error: prosError } = await supabase.from("product_pros_cons").insert(prosInserts)
-
-        if (prosError) {
-          console.error("[v0] Pros insert error:", prosError)
-        }
-      }
-    }
-
-    // Insert cons
-    if (body.cons && Array.isArray(body.cons) && body.cons.length > 0) {
-      const consInserts = body.cons
-        .filter((con: string) => con.trim())
-        .map((con: string, index: number) => ({
-          product_id: product.id,
-          content: con.trim(),
-          type: "con",
-          display_order: index,
-        }))
-
-      if (consInserts.length > 0) {
-        const { error: consError } = await supabase.from("product_pros_cons").insert(consInserts)
-
-        if (consError) {
-          console.error("[v0] Cons insert error:", consError)
-        }
-      }
-    }
 
     return NextResponse.json(
       {

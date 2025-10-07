@@ -6,8 +6,8 @@ export type ParsedProduct = {
     title: string
     category_id?: string
     category_name?: string
-    brand_id?: string
     brand_name?: string
+    affiliate_url: string
     price: number
     original_price?: number
     rating: number
@@ -42,7 +42,8 @@ const COLUMN_ALIASES: Record<string, string[]> = {
   description: ["details", "full_description"],
   images: ["image_urls", "img_urls", "photos"],
   category_id: ["category", "category_name"],
-  brand_id: ["brand", "brand_name"],
+  brand_name: ["brand", "brand_name"],
+  affiliate_url: ["affiliate", "affiliate_link", "link"],
   in_stock: ["stock", "available", "availability"],
   youtube_video_id: ["youtube_url", "video_url", "yt_url"],
 }
@@ -88,7 +89,6 @@ export function validateAndParseRow(
   row: string[],
   rowNumber: number,
   categories: Array<{ id: string; name: string }>,
-  brands: Array<{ id: string; name: string }>,
 ): ParsedProduct {
   const errors: string[] = []
   const data: any = {}
@@ -168,26 +168,9 @@ export function validateAndParseRow(
     }
   }
 
-  // Optional: brand (can be ID or name)
-  if (rowData.brand_id && rowData.brand_id.trim() !== "") {
-    const brandValue = rowData.brand_id.trim()
-    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(brandValue)
-
-    if (isUuid) {
-      const brandExists = brands.some((b) => b.id === brandValue)
-      if (!brandExists) {
-        errors.push(`Brand ID "${brandValue}" not found`)
-      } else {
-        data.brand_id = brandValue
-      }
-    } else {
-      const brand = brands.find((b) => b.name.toLowerCase() === brandValue.toLowerCase())
-      if (!brand) {
-        errors.push(`Brand "${brandValue}" not found`)
-      } else {
-        data.brand_id = brand.id
-      }
-    }
+  // Optional: brand name (free text)
+  if ((rowData.brand_name && rowData.brand_name.trim() !== "") || (rowData.brand && rowData.brand.trim() !== "")) {
+    data.brand_name = (rowData.brand_name || rowData.brand).trim()
   }
 
   // Optional: short_description
@@ -293,6 +276,18 @@ export function validateAndParseRow(
     data.featured = false // Default
   }
 
+  // Required: affiliate_url
+  if (!rowData.affiliate_url || rowData.affiliate_url.trim() === "") {
+    errors.push("Affiliate URL is required")
+  } else {
+    try {
+      new URL(rowData.affiliate_url.trim())
+      data.affiliate_url = rowData.affiliate_url.trim()
+    } catch {
+      errors.push("Affiliate URL must be a valid URL")
+    }
+  }
+
   // Optional: youtube_video_id
   if (rowData.youtube_video_id && rowData.youtube_video_id.trim() !== "") {
     const ytValue = rowData.youtube_video_id.trim()
@@ -321,7 +316,8 @@ export function generateCsvTemplate(): string {
   const headers = [
     "title",
     "category_id",
-    "brand_id",
+    "brand_name",
+    "affiliate_url",
     "price",
     "original_price",
     "rating",
@@ -339,10 +335,11 @@ export function generateCsvTemplate(): string {
   const exampleRow = [
     "Awesome Wireless Headphones",
     "category-uuid-or-name",
-    "brand-uuid-or-name",
+    "Sony",
+    "https://amzn.to/your-affiliate",
     "9999.00",
     "12999.00",
-    "4",
+    "4.5",
     "Premium wireless headphones with noise cancellation",
     "These headphones deliver exceptional audio quality with deep bass and crystal clear highs. Perfect for music lovers and professionals.",
     "https://example.com/img1.jpg,https://example.com/img2.jpg",

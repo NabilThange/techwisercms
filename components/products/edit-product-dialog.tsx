@@ -16,7 +16,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { cn } from "@/lib/utils"
 import { extractYouTubeVideoId } from "@/lib/db-utils"
 import { Loader } from "@/components/ui/loader"
-import type { Category, Brand, ProductWithRelations } from "@/types/database"
+import type { Category, ProductWithCategory } from "@/types/database"
 import { ImageUpload } from "./image-upload"
 
 type Props = {
@@ -53,18 +53,18 @@ export default function EditProductDialog({ productId, open, onOpenChange, onSuc
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [categories, setCategories] = useState<Category[]>([])
-  const [brands, setBrands] = useState<Brand[]>([])
 
   // Form state
   const [title, setTitle] = useState("")
   const [categoryId, setCategoryId] = useState<string>("")
-  const [brandId, setBrandId] = useState("")
+  const [brandName, setBrandName] = useState("")
   const [shortDescription, setShortDescription] = useState("")
   const [description, setDescription] = useState("")
   const [price, setPrice] = useState("")
   const [originalPrice, setOriginalPrice] = useState("")
   const [mainImageUrl, setMainImageUrl] = useState("")
   const [ytUrl, setYtUrl] = useState("")
+  const [affiliateUrl, setAffiliateUrl] = useState("")
   const [rating, setRating] = useState(0)
   const [pros, setPros] = useState<string[]>([""])
   const [cons, setCons] = useState<string[]>([""])
@@ -85,13 +85,9 @@ export default function EditProductDialog({ productId, open, onOpenChange, onSuc
 
   async function fetchMetadata() {
     try {
-      const [categoriesRes, brandsRes] = await Promise.all([fetch("/api/categories"), fetch("/api/brands")])
-
+      const categoriesRes = await fetch("/api/categories")
       const categoriesData = await categoriesRes.json()
-      const brandsData = await brandsRes.json()
-
       setCategories(categoriesData.categories || [])
-      setBrands(brandsData.brands || [])
     } catch (error) {
       console.error("[v0] Error fetching metadata:", error)
     }
@@ -109,14 +105,14 @@ export default function EditProductDialog({ productId, open, onOpenChange, onSuc
       }
 
       const data = await response.json()
-      const product: ProductWithRelations = data.product
+      const product: ProductWithCategory = data.product
 
       console.log("[v0] Product loaded:", product)
 
       // Populate form fields
       setTitle(product.title)
       setCategoryId(product.category_id)
-      setBrandId(product.brand_id || "")
+      setBrandName(product.brand_name || "")
       setShortDescription(product.short_description || "")
       setDescription(product.description || "")
       setPrice(product.price.toString())
@@ -126,12 +122,16 @@ export default function EditProductDialog({ productId, open, onOpenChange, onSuc
       setRating(product.rating)
       setInStock(product.in_stock)
       setFeatured(product.featured)
+      setAffiliateUrl(product.affiliate_url || "")
 
-      // Populate pros, cons, specs, images from the organized data
-      setPros((data.product.pros as string[]) || [""])
-      setCons((data.product.cons as string[]) || [""])
-      setSpecs((data.product.specs as Array<{ key: string; value: string }>) || [{ key: "", value: "" }])
-      const imageUrls = (data.product.images as Array<{ url: string; alt_text?: string }>)?.map((img) => img.url) || []
+      // Populate pros, cons, specs, images from product JSONB fields
+      setPros((product.pros as string[]) || [""])
+      setCons((product.cons as string[]) || [""])
+      const specsArray = product.specifications
+        ? Object.entries(product.specifications).map(([key, value]) => ({ key, value: String(value) }))
+        : [{ key: "", value: "" }]
+      setSpecs(specsArray as Array<{ key: string; value: string }>)
+      const imageUrls = (product.additional_images as string[]) || []
       setImages(imageUrls)
     } catch (error) {
       console.error("[v0] Error fetching product:", error)
@@ -160,6 +160,12 @@ export default function EditProductDialog({ productId, open, onOpenChange, onSuc
     if (!price || Number.parseFloat(price) <= 0) return "Valid price is required."
     if (rating < 1 || rating > 5) return "Overall rating must be between 1 and 5."
     if (!mainImageUrl) return "Main product image is required."
+    try {
+      if (!affiliateUrl) return "Affiliate URL is required."
+      new URL(affiliateUrl)
+    } catch {
+      return "Affiliate URL must be a valid URL."
+    }
     return null
   }
 
@@ -187,8 +193,9 @@ export default function EditProductDialog({ productId, open, onOpenChange, onSuc
         in_stock: inStock,
         featured,
         category_id: categoryId,
-        brand_id: brandId || null,
-        images: images.map((url) => ({ url, alt_text: title })),
+        brand_name: brandName || null,
+        affiliate_url: affiliateUrl,
+        images: images,
         specs: specs.filter((s) => s.key && s.value),
         pros: pros.filter((p) => p.trim()),
         cons: cons.filter((c) => c.trim()),
@@ -285,19 +292,12 @@ export default function EditProductDialog({ productId, open, onOpenChange, onSuc
                     </Select>
                   </div>
                   <div>
-                    <Label>Brand</Label>
-                    <Select value={brandId} onValueChange={setBrandId}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select brand" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {brands.map((b) => (
-                          <SelectItem key={b.id} value={b.id}>
-                            {b.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <Label>Brand (optional)</Label>
+                    <Input
+                      value={brandName}
+                      onChange={(e) => setBrandName(e.target.value)}
+                      placeholder="Enter brand name"
+                    />
                   </div>
                   <div>
                     <Label htmlFor="price">Price (₹)</Label>
@@ -509,14 +509,26 @@ export default function EditProductDialog({ productId, open, onOpenChange, onSuc
               </TabsContent>
 
               <TabsContent value="publish" className="grid gap-4">
-                <div className="grid sm:grid-cols-2 gap-4">
-                  <div className="flex items-center gap-2">
-                    <Checkbox id="inStock" checked={inStock} onCheckedChange={(v) => setInStock(Boolean(v))} />
-                    <Label htmlFor="inStock">In Stock</Label>
+                <div className="grid gap-4">
+                  <div>
+                    <Label htmlFor="affiliateUrl">Affiliate URL</Label>
+                    <Input
+                      id="affiliateUrl"
+                      value={affiliateUrl}
+                      onChange={(e) => setAffiliateUrl(e.target.value)}
+                      placeholder="https://example.com/affiliate-link"
+                      required
+                    />
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Checkbox id="featured" checked={featured} onCheckedChange={(v) => setFeatured(Boolean(v))} />
-                    <Label htmlFor="featured">Featured Product</Label>
+                  <div className="grid sm:grid-cols-2 gap-4">
+                    <div className="flex items-center gap-2">
+                      <Checkbox id="inStock" checked={inStock} onCheckedChange={(v) => setInStock(Boolean(v))} />
+                      <Label htmlFor="inStock">In Stock</Label>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Checkbox id="featured" checked={featured} onCheckedChange={(v) => setFeatured(Boolean(v))} />
+                      <Label htmlFor="featured">Featured Product</Label>
+                    </div>
                   </div>
                 </div>
               </TabsContent>

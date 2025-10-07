@@ -15,7 +15,7 @@ type Props = {
 
 export function ImportSummaryStep({ importResult, onClose, onStartOver }: Props) {
   const hasErrors = importResult.failedCount > 0
-  const hasNewEntities = importResult.createdCategories.length > 0 || importResult.createdBrands.length > 0
+  const hasNewEntities = importResult.createdCategories.length > 0
 
   function downloadErrorReport() {
     if (importResult.errors.length === 0) return
@@ -94,7 +94,7 @@ export function ImportSummaryStep({ importResult, onClose, onStartOver }: Props)
       {hasNewEntities && (
         <Alert>
           <CheckCircle2 className="h-4 w-4" />
-          <AlertTitle>New Categories and Brands Created</AlertTitle>
+          <AlertTitle>New Categories Created</AlertTitle>
           <AlertDescription>
             <div className="mt-2 space-y-2">
               {importResult.createdCategories.length > 0 && (
@@ -103,16 +103,6 @@ export function ImportSummaryStep({ importResult, onClose, onStartOver }: Props)
                   {importResult.createdCategories.map((cat) => (
                     <Badge key={cat} variant="secondary" className="ml-1">
                       {cat}
-                    </Badge>
-                  ))}
-                </div>
-              )}
-              {importResult.createdBrands.length > 0 && (
-                <div>
-                  <span className="font-semibold">Brands ({importResult.createdBrands.length}):</span>{" "}
-                  {importResult.createdBrands.map((brand) => (
-                    <Badge key={brand} variant="secondary" className="ml-1">
-                      {brand}
                     </Badge>
                   ))}
                 </div>

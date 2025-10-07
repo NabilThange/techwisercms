@@ -1,4 +1,4 @@
-// Bulk import processor with category/brand auto-creation
+// Bulk import processor with category auto-creation (new schema)
 import type { ValidationResult, ImportResult } from "./import-types"
 import { generateSlug } from "./db-utils"
 
@@ -14,7 +14,6 @@ export async function performBulkImport(
     failedCount: 0,
     skippedCount: 0,
     createdCategories: [],
-    createdBrands: [],
     errors: [],
     duration: 0,
   }
@@ -45,39 +44,12 @@ export async function performBulkImport(
     }
   }
 
-  // Step 2: Create new brands
-  if (validationResult.newBrands.length > 0) {
-    onProgress(0, validRows.length, "Creating new brands...")
-
-    for (const brandName of validationResult.newBrands) {
-      try {
-        const response = await fetch("/api/brands", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            name: brandName,
-            slug: generateSlug(brandName),
-          }),
-        })
-
-        if (response.ok) {
-          result.createdBrands.push(brandName)
-        }
-      } catch (error) {
-        console.error("[v0] Error creating brand:", error)
-      }
-    }
-  }
-
-  // Step 3: Fetch updated categories and brands
-  const [categoriesRes, brandsRes] = await Promise.all([fetch("/api/categories"), fetch("/api/brands")])
-
+  // Step 2: Fetch updated categories
+  const categoriesRes = await fetch("/api/categories")
   const categoriesData = await categoriesRes.json()
-  const brandsData = await brandsRes.json()
   const categories = categoriesData.categories || []
-  const brands = brandsData.brands || []
 
-  // Step 4: Import products in batches
+  // Step 3: Import products in batches
   const batchSize = 10
   for (let i = 0; i < validRows.length; i += batchSize) {
     const batch = validRows.slice(i, i + batchSize)
@@ -87,18 +59,14 @@ export async function performBulkImport(
       onProgress(currentIndex, validRows.length, `Importing product ${currentIndex} of ${validRows.length}...`)
 
       try {
-        // Find category ID
-        const category = categories.find((c: any) => c.name.toLowerCase() === row.data.category.toLowerCase())
-
-        // Find brand ID
-        const brand = row.data.brand
-          ? brands.find((b: any) => b.name.toLowerCase() === row.data.brand.toLowerCase())
-          : null
+        // Find category ID by name
+        const category = categories.find((c: any) => c.name.toLowerCase() === String(row.data.category).toLowerCase())
 
         const productData = {
           title: row.data.title,
           category_id: category?.id,
-          brand_id: brand?.id || null,
+          brand_name: row.data.brand || row.data.brand_name || null,
+          affiliate_url: row.data.affiliate_url,
           price: row.data.price,
           original_price: row.data.original_price || null,
           rating: row.data.rating,

@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import type { Category, Brand, ProductWithRelations } from "@/types/database"
+import type { Category, ProductWithCategory } from "@/types/database"
 import { formatPrice } from "@/lib/db-utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -25,6 +25,62 @@ import EditProductDialog from "@/components/products/edit-product-dialog"
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString()
+}
+
+// Product Action Menu Component - Uses Radix DropdownMenu for reliability
+function ProductActionMenu({ 
+  productId, 
+  onAction,
+  buttonText = "Actions",
+  buttonVariant = "default" as const,
+  buttonClassName = "bg-blue-500 hover:bg-blue-600 text-white transition-colors duration-200"
+}: { 
+  productId: string
+  onAction: (id: string, action: "edit" | "duplicate" | "delete" | "view" | "toggle") => void
+  buttonText?: string
+  buttonVariant?: "default" | "outline" | "ghost" | "secondary" | "destructive" | "link"
+  buttonClassName?: string
+}) {
+  const handleAction = React.useCallback((action: "edit" | "duplicate" | "delete" | "view" | "toggle") => {
+    onAction(productId, action)
+  }, [productId, onAction])
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button 
+          variant={buttonVariant}
+          size="sm" 
+          className={buttonClassName}
+          aria-label={`${buttonText} for product ${productId}`}
+        >
+          {buttonText}
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" sideOffset={5}>
+        <DropdownMenuItem 
+          onClick={() => handleAction("edit")}
+          className="cursor-pointer"
+        >
+          Edit
+        </DropdownMenuItem>
+        <DropdownMenuItem 
+          onClick={() => handleAction("duplicate")}
+          className="cursor-pointer"
+        >
+          Duplicate
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem 
+          onClick={() => handleAction("delete")}
+          className="cursor-pointer text-destructive focus:text-destructive"
+          variant="destructive"
+        >
+          Delete
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
 }
 
 function toCSV(rows: Record<string, any>[]) {
@@ -85,19 +141,19 @@ function ProductsToolbar(props: {
   } = props
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-4 w-full overflow-x-hidden">
       {/* First Row - Search and Filters */}
-      <div className="flex flex-col lg:flex-row gap-3">
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_auto] items-start gap-3 sm:gap-4">
         <Input
           placeholder="Search products, brands, categories..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="w-full lg:flex-1 lg:max-w-md"
+          className="w-full"
         />
 
-        <div className="flex flex-wrap gap-2 lg:gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 lg:gap-3 w-full min-w-0">
           <Select value={category} onValueChange={setCategory}>
-            <SelectTrigger className="w-full sm:w-[160px]">
+            <SelectTrigger className="w-full min-w-0">
               <SelectValue placeholder="Category" />
             </SelectTrigger>
             <SelectContent>
@@ -111,7 +167,7 @@ function ProductsToolbar(props: {
           </Select>
 
           <Select value={status} onValueChange={setStatus}>
-            <SelectTrigger className="w-full sm:w-[140px]">
+            <SelectTrigger className="w-full min-w-0">
               <SelectValue placeholder="Status" />
             </SelectTrigger>
             <SelectContent>
@@ -122,7 +178,7 @@ function ProductsToolbar(props: {
           </Select>
 
           <Select value={rating} onValueChange={setRating}>
-            <SelectTrigger className="w-full sm:w-[130px]">
+            <SelectTrigger className="w-full min-w-0">
               <SelectValue placeholder="Rating" />
             </SelectTrigger>
             <SelectContent>
@@ -133,7 +189,7 @@ function ProductsToolbar(props: {
             </SelectContent>
           </Select>
 
-          <div className="flex items-center gap-2 px-2">
+          <div className="flex items-center gap-2 px-0 sm:px-2 w-full sm:w-auto">
             <Checkbox id="featured-only" checked={featuredOnly} onCheckedChange={(v) => setFeaturedOnly(Boolean(v))} />
             <Label htmlFor="featured-only" className="text-sm cursor-pointer whitespace-nowrap">
               Featured
@@ -143,11 +199,11 @@ function ProductsToolbar(props: {
       </div>
 
       {/* Second Row - Actions */}
-      <div className="flex flex-col lg:flex-row justify-between gap-3">
-        <div className="flex items-center gap-2">
+      <div className="flex flex-col lg:flex-row justify-between gap-3 w-full">
+        <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" disabled={selectionCount === 0}>
+              <Button variant="outline" disabled={selectionCount === 0} className="w-full sm:w-auto">
                 Bulk Actions ({selectionCount})
               </Button>
             </DropdownMenuTrigger>
@@ -162,7 +218,7 @@ function ProductsToolbar(props: {
           </DropdownMenu>
         </div>
 
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2 w-full lg:w-auto">
           <Select value={sort} onValueChange={setSort}>
             <SelectTrigger className="w-full sm:w-[200px]">
               <SelectValue placeholder="Sort by" />
@@ -177,30 +233,30 @@ function ProductsToolbar(props: {
             </SelectContent>
           </Select>
 
-          <div className="flex rounded-md overflow-hidden border">
+          <div className="flex rounded-md overflow-hidden border w-full sm:w-auto">
             <Button
               variant={view === "list" ? "default" : "ghost"}
               onClick={() => setView("list")}
-              className="rounded-none"
+              className="rounded-none flex-1 sm:flex-none"
             >
               List
             </Button>
             <Button
               variant={view === "grid" ? "default" : "ghost"}
               onClick={() => setView("grid")}
-              className="rounded-none"
+              className="rounded-none flex-1 sm:flex-none"
             >
               Grid
             </Button>
           </div>
 
-          <Button variant="outline" onClick={onRefresh}>
+          <Button variant="outline" onClick={onRefresh} className="w-full sm:w-auto">
             Refresh
           </Button>
           <AddProductDialog onSuccess={onAddSuccess}>
-            <Button>Add Product</Button>
+            <Button className="w-full sm:w-auto">Add Product</Button>
           </AddProductDialog>
-          <Button variant="outline" onClick={onExport}>
+          <Button variant="outline" onClick={onExport} className="w-full sm:w-auto">
             Export CSV
           </Button>
         </div>
@@ -210,7 +266,7 @@ function ProductsToolbar(props: {
 }
 
 function ListView(props: {
-  products: ProductWithRelations[]
+  products: ProductWithCategory[]
   selected: Set<string>
   toggleSelect: (id: string) => void
   selectAllOnPage: (ids: string[]) => void
@@ -221,7 +277,7 @@ function ListView(props: {
   const allSelected = pageIds.every((id) => selected.has(id))
 
   return (
-    <div className="rounded-lg border bg-card overflow-x-auto">
+    <div className="rounded-lg border bg-card overflow-x-auto overflow-y-visible">
       <Table>
         <TableHeader>
           <TableRow>
@@ -261,30 +317,12 @@ function ListView(props: {
               <TableCell className="whitespace-nowrap font-semibold">{formatPrice(p.price, p.currency)}</TableCell>
               <TableCell>
                 <div className="flex flex-col gap-1">
-                  <span className="text-sm break-words">{p.brands?.name || "N/A"}</span>
+<span className="text-sm break-words">{p.brand_name || "N/A"}</span>
                   <span className="text-xs text-muted-foreground break-words">{p.categories?.name || "N/A"}</span>
                 </div>
               </TableCell>
               <TableCell className="text-right">
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button 
-                      variant="default" 
-                      size="sm" 
-                      className="bg-blue-500 hover:bg-blue-600 text-white transition-colors duration-200"
-                    >
-                      Actions
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem onSelect={(e) => onAction(p.id, "edit")}>Edit</DropdownMenuItem>
-                    <DropdownMenuItem onSelect={(e) => onAction(p.id, "duplicate")}>Duplicate</DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onSelect={(e) => onAction(p.id, "delete")} className="text-destructive">
-                      Delete
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                <ProductActionMenu productId={p.id} onAction={onAction} />
               </TableCell>
             </TableRow>
           ))}
@@ -295,15 +333,15 @@ function ListView(props: {
 }
 
 function GridView(props: {
-  products: ProductWithRelations[]
+  products: ProductWithCategory[]
   onAction: (id: string, action: "edit" | "duplicate" | "delete" | "view" | "toggle") => void
 }) {
   const { products, onAction } = props
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 sm:gap-5">
       {products.map((p) => (
-        <Card key={p.id} className="overflow-hidden flex flex-col hover:shadow-lg transition-shadow">
-          <div className="aspect-video bg-muted relative">
+        <Card key={p.id} className="flex flex-col hover:shadow-lg transition-shadow relative">
+          <div className="aspect-video bg-muted relative overflow-hidden rounded-t-lg">
             <img
               src={p.main_image_url || "/placeholder.svg?height=240&width=360"}
               alt={p.title}
@@ -315,7 +353,7 @@ function GridView(props: {
             <div className="flex-1">
               <h3 className="font-semibold text-base line-clamp-2 mb-2">{p.title}</h3>
               <div className="text-sm text-muted-foreground mb-2">
-                <span>{p.brands?.name || "N/A"}</span>
+<span>{p.brand_name || "N/A"}</span>
                 <span className="mx-1">•</span>
                 <span>{p.categories?.name || "N/A"}</span>
               </div>
@@ -336,21 +374,13 @@ function GridView(props: {
               >
                 Edit
               </Button>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" className="hover:bg-gray-50">
-                    More
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem onSelect={(e) => onAction(p.id, "edit")}>Edit</DropdownMenuItem>
-                  <DropdownMenuItem onSelect={(e) => onAction(p.id, "duplicate")}>Duplicate</DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onSelect={(e) => onAction(p.id, "delete")} className="text-destructive">
-                    Delete
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <ProductActionMenu 
+                productId={p.id} 
+                onAction={onAction} 
+                buttonText="More"
+                buttonVariant="outline"
+                buttonClassName="hover:bg-gray-50"
+              />
             </div>
           </CardContent>
         </Card>
@@ -407,9 +437,8 @@ function RatingStars({ value }: { value: number }) {
 }
 
 export default function ProductsPage() {
-  const [products, setProducts] = React.useState<ProductWithRelations[]>([])
+const [products, setProducts] = React.useState<ProductWithCategory[]>([])
   const [categories, setCategories] = React.useState<Category[]>([])
-  const [brands, setBrands] = React.useState<Brand[]>([])
   const [loading, setLoading] = React.useState(true)
   const [error, setError] = React.useState<string | null>(null)
 
@@ -428,7 +457,6 @@ export default function ProductsPage() {
 
   React.useEffect(() => {
     fetchCategories()
-    fetchBrands()
   }, [])
 
   React.useEffect(() => {
@@ -445,15 +473,6 @@ export default function ProductsPage() {
     }
   }
 
-  const fetchBrands = async () => {
-    try {
-      const response = await fetch("/api/brands")
-      const data = await response.json()
-      setBrands(data.brands)
-    } catch (err) {
-      console.error("Error fetching brands:", err)
-    }
-  }
 
   const fetchProducts = async () => {
     try {
@@ -543,7 +562,7 @@ export default function ProductsPage() {
     const exportData = filtered.map((p) => ({
       id: p.id,
       title: p.title,
-      brand: p.brands?.name || "",
+brand: p.brand_name || "",
       category: p.categories?.name || "",
       price: p.price,
       rating: p.rating,

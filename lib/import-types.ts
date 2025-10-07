@@ -24,7 +24,6 @@ export type ValidationResult = {
   errorCount: number
   warningCount: number
   newCategories: string[]
-  newBrands: string[]
 }
 
 export type ImportResult = {
@@ -33,7 +32,6 @@ export type ImportResult = {
   failedCount: number
   skippedCount: number
   createdCategories: string[]
-  createdBrands: string[]
   errors: Array<{ row: number; message: string }>
   duration: number
 }

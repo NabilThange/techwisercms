@@ -8,7 +8,7 @@ import { ColumnMappingStep } from "./import-steps/column-mapping-step"
 import { ValidationStep } from "./import-steps/validation-step"
 import { ImportProgressStep } from "./import-steps/import-progress-step"
 import { ImportSummaryStep } from "./import-steps/import-summary-step"
-import type { Category, Brand } from "@/types/database"
+import type { Category } from "@/types/database"
 import type { FileParseResult } from "@/lib/file-parsers"
 import type { ColumnMapping, ValidationResult, ImportResult } from "@/lib/import-types"
 
@@ -24,7 +24,6 @@ export function ImportWizard({ open, onOpenChange, onCompleted }: Props) {
   const { toast } = useToast()
   const [currentStep, setCurrentStep] = useState<ImportStep>("upload")
   const [categories, setCategories] = useState<Category[]>([])
-  const [brands, setBrands] = useState<Brand[]>([])
 
   // Step data
   const [parseResult, setParseResult] = useState<FileParseResult | null>(null)
@@ -34,24 +33,20 @@ export function ImportWizard({ open, onOpenChange, onCompleted }: Props) {
 
   useEffect(() => {
     if (open) {
-      fetchCategoriesAndBrands()
+      fetchCategories()
     }
   }, [open])
 
-  async function fetchCategoriesAndBrands() {
+  async function fetchCategories() {
     try {
-      const [categoriesRes, brandsRes] = await Promise.all([fetch("/api/categories"), fetch("/api/brands")])
-
+      const categoriesRes = await fetch("/api/categories")
       const categoriesData = await categoriesRes.json()
-      const brandsData = await brandsRes.json()
-
       setCategories(categoriesData.categories || [])
-      setBrands(brandsData.brands || [])
     } catch (error) {
-      console.error("[v0] Error fetching categories and brands:", error)
+      console.error("[v0] Error fetching categories:", error)
       toast({
         title: "Error",
-        description: "Failed to load categories and brands",
+        description: "Failed to load categories",
         variant: "destructive",
       })
     }
@@ -126,7 +121,6 @@ export function ImportWizard({ open, onOpenChange, onCompleted }: Props) {
             <ColumnMappingStep
               parseResult={parseResult}
               categories={categories}
-              brands={brands}
               onBack={() => setCurrentStep("upload")}
               onNext={(mapping) => {
                 setColumnMapping(mapping)
@@ -140,7 +134,6 @@ export function ImportWizard({ open, onOpenChange, onCompleted }: Props) {
               parseResult={parseResult}
               columnMapping={columnMapping}
               categories={categories}
-              brands={brands}
               onBack={() => setCurrentStep("mapping")}
               onNext={(result) => {
                 setValidationResult(result)

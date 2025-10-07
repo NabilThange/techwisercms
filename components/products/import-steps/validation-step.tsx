@@ -9,19 +9,18 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { CheckCircle2, AlertCircle, AlertTriangle, Download } from "lucide-react"
 import type { FileParseResult } from "@/lib/file-parsers"
 import type { ColumnMapping, ValidationResult } from "@/lib/import-types"
-import type { Category, Brand } from "@/types/database"
+import type { Category } from "@/types/database"
 import { validateImportData } from "@/lib/import-validator"
 
 type Props = {
   parseResult: FileParseResult
   columnMapping: ColumnMapping
   categories: Category[]
-  brands: Brand[]
   onBack: () => void
   onNext: (result: ValidationResult) => void
 }
 
-export function ValidationStep({ parseResult, columnMapping, categories, brands, onBack, onNext }: Props) {
+export function ValidationStep({ parseResult, columnMapping, categories, onBack, onNext }: Props) {
   const [isValidating, setIsValidating] = useState(true)
   const [progress, setProgress] = useState(0)
   const [validationResult, setValidationResult] = useState<ValidationResult | null>(null)
@@ -40,7 +39,7 @@ export function ValidationStep({ parseResult, columnMapping, categories, brands,
     }, 100)
 
     try {
-      const result = await validateImportData(parseResult, columnMapping, categories, brands)
+      const result = await validateImportData(parseResult, columnMapping, categories)
 
       clearInterval(progressInterval)
       setProgress(100)
@@ -95,7 +94,7 @@ export function ValidationStep({ parseResult, columnMapping, categories, brands,
   }
 
   const hasErrors = validationResult.errorCount > 0
-  const hasNewEntities = validationResult.newCategories.length > 0 || validationResult.newBrands.length > 0
+  const hasNewEntities = validationResult.newCategories.length > 0
 
   return (
     <div className="grid gap-6">
@@ -141,16 +140,6 @@ export function ValidationStep({ parseResult, columnMapping, categories, brands,
                   ))}
                 </div>
               )}
-              {validationResult.newBrands.length > 0 && (
-                <div>
-                  <span className="font-semibold">New Brands:</span>{" "}
-                  {validationResult.newBrands.map((brand) => (
-                    <Badge key={brand} variant="secondary" className="ml-1">
-                      {brand}
-                    </Badge>
-                  ))}
-                </div>
-              )}
             </div>
           </AlertDescription>
         </Alert>
@@ -182,7 +171,7 @@ export function ValidationStep({ parseResult, columnMapping, categories, brands,
                   <TableHead className="w-12">Row</TableHead>
                   <TableHead>Title</TableHead>
                   <TableHead>Category</TableHead>
-                  <TableHead>Brand</TableHead>
+                  <TableHead>Brand Name</TableHead>
                   <TableHead>Price</TableHead>
                   <TableHead>Status</TableHead>
                 </TableRow>
@@ -196,7 +185,7 @@ export function ValidationStep({ parseResult, columnMapping, categories, brands,
                       <TableCell>{row.rowNumber}</TableCell>
                       <TableCell className="font-medium">{row.data.title}</TableCell>
                       <TableCell>{row.data.category}</TableCell>
-                      <TableCell>{row.data.brand || "-"}</TableCell>
+                      <TableCell>{row.data.brand_name || row.data.brand || "-"}</TableCell>
                       <TableCell>₹{row.data.price}</TableCell>
                       <TableCell>
                         <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">

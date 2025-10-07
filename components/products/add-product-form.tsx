@@ -13,14 +13,13 @@ import { Separator } from "@/components/ui/separator"
 import { Card } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
 import { extractYouTubeVideoId } from "@/lib/db-utils"
-import type { Category, Brand } from "@/types/database"
+import type { Category } from "@/types/database"
 import { ImageUpload } from "./image-upload"
 import { useToast } from "@/components/ui/use-toast"
 
 type Props = {
   onSubmitted?: () => void
   categories?: Category[]
-  brands?: Brand[]
 }
 
 function StarRating({ value, onChange }: { value: number; onChange: (v: number) => void }) {
@@ -45,19 +44,18 @@ function StarRating({ value, onChange }: { value: number; onChange: (v: number) 
   )
 }
 
-export default function AddProductForm({ onSubmitted, categories = [], brands = [] }: Props) {
+export default function AddProductForm({ onSubmitted, categories = [] }: Props) {
   const { toast } = useToast()
   const [submitting, setSubmitting] = useState(false)
   const [activeTab, setActiveTab] = useState("basic")
 
   const [loadingData, setLoadingData] = useState(false)
   const [localCategories, setLocalCategories] = useState<Category[]>(categories)
-  const [localBrands, setLocalBrands] = useState<Brand[]>(brands)
 
   // Basic
   const [title, setTitle] = useState("")
   const [categoryId, setCategoryId] = useState<string>("")
-  const [brandId, setBrandId] = useState("")
+  const [brandName, setBrandName] = useState("")
   const [shortDescription, setShortDescription] = useState("")
   const [description, setDescription] = useState("")
   const [price, setPrice] = useState("")
@@ -66,6 +64,7 @@ export default function AddProductForm({ onSubmitted, categories = [], brands = 
   // Media
   const [images, setImages] = useState<string[]>([])
   const [ytUrl, setYtUrl] = useState("")
+  const [affiliateUrl, setAffiliateUrl] = useState("")
   const ytId = useMemo(() => extractYouTubeVideoId(ytUrl), [ytUrl])
 
   // Review
@@ -80,7 +79,7 @@ export default function AddProductForm({ onSubmitted, categories = [], brands = 
 
 
   useEffect(() => {
-    if (categories.length === 0 || brands.length === 0) {
+    if (categories.length === 0) {
       fetchData()
     }
   }, [categories.length, brands.length])
@@ -88,16 +87,14 @@ export default function AddProductForm({ onSubmitted, categories = [], brands = 
   async function fetchData() {
     try {
       setLoadingData(true)
-      const [categoriesRes, brandsRes] = await Promise.all([fetch("/api/categories"), fetch("/api/brands")])
+      const categoriesRes = await fetch("/api/categories")
 
       const categoriesData = await categoriesRes.json()
-      const brandsData = await brandsRes.json()
 
       setLocalCategories(categoriesData.categories || [])
-      setLocalBrands(brandsData.brands || [])
     } catch (error) {
       console.error("[v0] Error fetching data:", error)
-      toast({ title: "Error", description: "Failed to load categories and brands", variant: "destructive" })
+      toast({ title: "Error", description: "Failed to load categories", variant: "destructive" })
     } finally {
       setLoadingData(false)
     }
@@ -117,6 +114,12 @@ export default function AddProductForm({ onSubmitted, categories = [], brands = 
     if (!categoryId) return "Please select a category."
     if (!price || Number.parseFloat(price) <= 0) return "Valid price is required."
     if (rating < 1 || rating > 5) return "Overall rating must be between 1 and 5."
+    try {
+      if (!affiliateUrl) return "Affiliate URL is required."
+      new URL(affiliateUrl)
+    } catch {
+      return "Affiliate URL must be a valid URL."
+    }
     return null
   }
 
@@ -154,11 +157,9 @@ export default function AddProductForm({ onSubmitted, categories = [], brands = 
         in_stock: publish ? inStock : false,
         featured,
         category_id: categoryId,
-        brand_id: brandId || null,
-        images: images.map((url, index) => ({
-          url,
-          alt_text: title,
-        })),
+        brand_name: brandName || null,
+        affiliate_url: affiliateUrl,
+        images: images,
         specs: specs.filter((s) => s.key && s.value),
         pros: pros.filter((p) => p.trim()),
         cons: cons.filter((c) => c.trim()),
@@ -245,19 +246,13 @@ export default function AddProductForm({ onSubmitted, categories = [], brands = 
               </div>
               
               <div className="grid gap-3">
-                <Label className="text-base font-semibold">Brand</Label>
-                <Select value={brandId} onValueChange={setBrandId} disabled={loadingData}>
-                  <SelectTrigger className="text-base h-12 px-4">
-                    <SelectValue placeholder="Select brand (optional)" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {localBrands.map((b) => (
-                      <SelectItem key={b.id} value={b.id} className="text-base py-3">
-                        {b.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Label className="text-base font-semibold">Brand (optional)</Label>
+                <Input
+                  value={brandName}
+                  onChange={(e) => setBrandName(e.target.value)}
+                  className="text-base h-12 px-4"
+                  placeholder="Enter brand name"
+                />
               </div>
             </div>
             
@@ -539,6 +534,19 @@ export default function AddProductForm({ onSubmitted, categories = [], brands = 
 
         <TabsContent value="publish" className="grid gap-6 mt-6">
           <div className="grid gap-6">
+            <div className="grid gap-3">
+              <Label htmlFor="affiliateUrl" className="text-base font-semibold">Affiliate URL *</Label>
+              <Input
+                id="affiliateUrl"
+                value={affiliateUrl}
+                onChange={(e) => setAffiliateUrl(e.target.value)}
+                className="text-base h-12 px-4"
+                placeholder="https://example.com/affiliate-link"
+                required
+              />
+              <p className="text-sm text-muted-foreground">This link is required for the product and must be a valid URL.</p>
+            </div>
+
             <div className="flex items-start gap-3 p-4 border rounded-lg">
               <Checkbox 
                 id="inStock" 

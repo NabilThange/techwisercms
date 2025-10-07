@@ -14,11 +14,19 @@ export async function POST(request: Request) {
     if (!body.title || !body.price || !body.category_id || !body.rating) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
     }
+    if (!body.affiliate_url) {
+      return NextResponse.json({ error: "Affiliate URL is required" }, { status: 400 })
+    }
+    try {
+      new URL(body.affiliate_url)
+    } catch {
+      return NextResponse.json({ error: "Affiliate URL must be a valid URL" }, { status: 400 })
+    }
 
     // Generate unique slug
     let slug = generateSlug(body.title)
 
-    // Check if slug exists and make it unique
+    // Ensure slug is unique
     let slugExists = true
     let counter = 1
     while (slugExists) {
@@ -31,28 +39,48 @@ export async function POST(request: Request) {
       }
     }
 
-    // Set main image URL
-    const mainImageUrl = body.main_image_url || body.images?.[0] || "/diverse-products-still-life.png"
+    // Normalize images and main image
+    const imageUrls: string[] = Array.isArray(body.images)
+      ? (typeof body.images[0] === "string"
+          ? (body.images as string[])
+          : (body.images as Array<{ url: string }>).map((i) => i.url))
+      : []
+    const mainImageUrl = body.main_image_url || imageUrls[0] || "/diverse-products-still-life.png"
 
-    // Insert main product
+    // Convert specs array to specifications object
+    let specifications: Record<string, string> | null = null
+    if (Array.isArray(body.specs) && body.specs.length > 0) {
+      specifications = {}
+      for (const spec of body.specs) {
+        if (spec?.key && spec?.value) specifications[spec.key] = spec.value
+      }
+    }
+
+    // Insert product per new schema
     const { data: product, error: productError } = await supabase
       .from("products")
       .insert({
         title: body.title,
-        slug: slug,
+        slug,
         short_description: body.short_description || null,
         description: body.description || null,
-        price: body.price,
-        original_price: body.original_price || null,
+        price: Number(body.price),
+        original_price: body.original_price ? Number(body.original_price) : null,
         currency: "INR",
         main_image_url: mainImageUrl,
-        rating: body.rating,
+        additional_images: imageUrls.length > 0 ? imageUrls : null,
+        rating: Number(body.rating),
         review_count: 0,
         youtube_video_id: body.youtube_video_id || null,
         in_stock: body.in_stock !== false,
         featured: body.featured || false,
+        is_published: body.in_stock !== false,
         category_id: body.category_id,
-        brand_id: body.brand_id || null,
+        brand_name: body.brand_name || null,
+        affiliate_url: body.affiliate_url,
+        specifications,
+        pros: Array.isArray(body.pros) ? body.pros : null,
+        cons: Array.isArray(body.cons) ? body.cons : null,
       })
       .select()
       .single()
@@ -60,54 +88,6 @@ export async function POST(request: Request) {
     if (productError) {
       console.error("[v0] Product insert error:", productError)
       throw productError
-    }
-
-    // Insert additional images
-    if (body.images && Array.isArray(body.images) && body.images.length > 0) {
-      const imageInserts = body.images.map((url: string, index: number) => ({
-        product_id: product.id,
-        image_url: url,
-        alt_text: body.title,
-        display_order: index,
-      }))
-
-      await supabase.from("product_images").insert(imageInserts)
-    }
-
-    // Insert specifications
-    if (body.specs && Array.isArray(body.specs) && body.specs.length > 0) {
-      const specInserts = body.specs.map((spec: any, index: number) => ({
-        product_id: product.id,
-        spec_key: spec.key,
-        spec_value: spec.value,
-        display_order: index,
-      }))
-
-      await supabase.from("product_specs").insert(specInserts)
-    }
-
-    // Insert pros
-    if (body.pros && Array.isArray(body.pros) && body.pros.length > 0) {
-      const prosInserts = body.pros.map((pro: string, index: number) => ({
-        product_id: product.id,
-        content: pro,
-        type: "pro",
-        display_order: index,
-      }))
-
-      await supabase.from("product_pros_cons").insert(prosInserts)
-    }
-
-    // Insert cons
-    if (body.cons && Array.isArray(body.cons) && body.cons.length > 0) {
-      const consInserts = body.cons.map((con: string, index: number) => ({
-        product_id: product.id,
-        content: con,
-        type: "con",
-        display_order: index,
-      }))
-
-      await supabase.from("product_pros_cons").insert(consInserts)
     }
 
     return NextResponse.json({ success: true, product }, { status: 201 })

@@ -18,7 +18,7 @@ import {
   type ParsedProduct,
   type ImportSummary,
 } from "@/lib/csv-import-utils"
-import type { Category, Brand } from "@/types/database"
+import type { Category } from "@/types/database"
 
 type Props = { onCompleted?: () => void }
 
@@ -31,25 +31,20 @@ export default function ImportCsvDialog({ onCompleted }: Props) {
   const [parsedProducts, setParsedProducts] = useState<ParsedProduct[]>([])
   const [importSummary, setImportSummary] = useState<ImportSummary | null>(null)
   const [categories, setCategories] = useState<Category[]>([])
-  const [brands, setBrands] = useState<Brand[]>([])
   const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
-    fetchCategoriesAndBrands()
+    fetchCategories()
   }, [])
 
-  async function fetchCategoriesAndBrands() {
+  async function fetchCategories() {
     try {
-      const [categoriesRes, brandsRes] = await Promise.all([fetch("/api/categories"), fetch("/api/brands")])
-
+      const categoriesRes = await fetch("/api/categories")
       const categoriesData = await categoriesRes.json()
-      const brandsData = await brandsRes.json()
-
       setCategories(categoriesData.categories || [])
-      setBrands(brandsData.brands || [])
     } catch (error) {
-      console.error("[v0] Error fetching categories and brands:", error)
-      toast({ title: "Error", description: "Failed to load categories and brands", variant: "destructive" })
+      console.error("[v0] Error fetching categories:", error)
+      toast({ title: "Error", description: "Failed to load categories", variant: "destructive" })
     }
   }
 
@@ -80,7 +75,7 @@ export default function ImportCsvDialog({ onCompleted }: Props) {
       // Validate and parse each row
       const parsed: ParsedProduct[] = []
       for (let i = 0; i < rows.length; i++) {
-        const result = validateAndParseRow(headers, rows[i], i + 2, categories, brands) // +2 because row 1 is header
+        const result = validateAndParseRow(headers, rows[i], i + 2, categories) // +2 because row 1 is header
         parsed.push(result)
       }
 

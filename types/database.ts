@@ -8,13 +8,19 @@ export interface Product {
   original_price?: number
   currency: string
   main_image_url: string
+  additional_images?: string[]
   rating: number
   review_count: number
   youtube_video_id?: string
   in_stock: boolean
   featured: boolean
+  is_published: boolean
+  affiliate_url: string
+  brand_name?: string
+  specifications?: Record<string, string>
+  pros?: string[]
+  cons?: string[]
   category_id: string
-  brand_id: string
   created_at: string
   updated_at: string
 }
@@ -28,50 +34,8 @@ export interface Category {
   updated_at: string
 }
 
-export interface Brand {
-  id: string
-  name: string
-  slug: string
-  logo_url?: string
-  website_url?: string
-  description?: string
-  created_at: string
-  updated_at: string
-}
-
-export interface ProductImage {
-  id: string
-  product_id: string
-  image_url: string
-  alt_text?: string
-  display_order: number
-  created_at: string
-}
-
-export interface ProductSpec {
-  id: string
-  product_id: string
-  spec_key: string
-  spec_value: string
-  display_order: number
-  created_at: string
-}
-
-export interface ProductProCon {
-  id: string
-  product_id: string
-  content: string
-  type: "pro" | "con"
-  display_order: number
-  created_at: string
-}
-
-export interface ProductWithRelations extends Product {
+export interface ProductWithCategory extends Product {
   categories?: Category
-  brands?: Brand
-  product_images?: ProductImage[]
-  product_specs?: ProductSpec[]
-  product_pros_cons?: ProductProCon[]
 }
 
 export interface ProductFormData {
@@ -82,20 +46,18 @@ export interface ProductFormData {
   original_price?: string
   currency: string
   category_id: string
-  brand_id: string
   youtube_video_id?: string
   in_stock: boolean
   featured: boolean
   rating: number
   main_image_url: string
-  images: Array<{
-    url: string
-    alt_text?: string
-  }>
+  images: string[]
   specs: Array<{
     key: string
     value: string
   }>
   pros: string[]
   cons: string[]
+  brand_name?: string
+  affiliate_url: string
 }

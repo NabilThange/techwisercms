@@ -20,6 +20,9 @@ export default async function ProductDetailPage({
     if (response.ok) {
       const data = await response.json()
       product = data.product
+      if (product && product.specifications) {
+        product.specs = Object.entries(product.specifications).map(([key, value]: [string, any]) => ({ key, value: String(value) }))
+      }
     } else {
       error = "Product not found"
     }

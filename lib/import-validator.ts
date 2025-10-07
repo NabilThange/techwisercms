@@ -1,17 +1,15 @@
-// Data validation logic for imports
+// Data validation logic for imports (new schema)
 import type { FileParseResult } from "./file-parsers"
 import type { ColumnMapping, ValidationResult, ValidatedRow, ValidationError } from "./import-types"
-import type { Category, Brand } from "@/types/database"
+import type { Category } from "@/types/database"
 
 export async function validateImportData(
   parseResult: FileParseResult,
   columnMapping: ColumnMapping,
   categories: Category[],
-  brands: Brand[],
 ): Promise<ValidationResult> {
   const validatedRows: ValidatedRow[] = []
   const newCategories = new Set<string>()
-  const newBrands = new Set<string>()
   let warningCount = 0
 
   for (let i = 0; i < parseResult.rows.length; i++) {
@@ -65,10 +63,21 @@ export async function validateImportData(
       errors.push({ row: rowNumber, field: "category", message: "Category is required" })
     } else {
       // Check if category exists or needs to be created
-      const categoryExists = categories.some((c) => c.name.toLowerCase() === data.category.toLowerCase())
+      const categoryExists = categories.some((c) => c.name.toLowerCase() === String(data.category).toLowerCase())
       if (!categoryExists) {
-        newCategories.add(data.category)
+        newCategories.add(String(data.category))
         warnings.push(`Category "${data.category}" will be created`)
+      }
+    }
+
+    // Validate affiliate_url (required)
+    if (!data.affiliate_url || data.affiliate_url === "") {
+      errors.push({ row: rowNumber, field: "affiliate_url", message: "Affiliate URL is required" })
+    } else {
+      try {
+        new URL(data.affiliate_url)
+      } catch {
+        errors.push({ row: rowNumber, field: "affiliate_url", message: "Affiliate URL must be a valid URL" })
       }
     }
 
@@ -82,12 +91,9 @@ export async function validateImportData(
       }
     }
 
+    // Optional brand_name: accept as-is (free text in new schema)
     if (data.brand && data.brand !== "") {
-      const brandExists = brands.some((b) => b.name.toLowerCase() === data.brand.toLowerCase())
-      if (!brandExists) {
-        newBrands.add(data.brand)
-        warnings.push(`Brand "${data.brand}" will be created`)
-      }
+      data.brand = String(data.brand)
     }
 
     if (data.short_description && data.short_description.length > 200) {
@@ -178,6 +184,5 @@ export async function validateImportData(
     errorCount: validatedRows.filter((r) => !r.isValid).length,
     warningCount,
     newCategories: Array.from(newCategories),
-    newBrands: Array.from(newBrands),
   }
 }

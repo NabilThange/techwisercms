@@ -41,7 +41,6 @@ export function ImportProgressStep({ validationResult, onComplete }: Props) {
         failedCount: validationResult.validCount,
         skippedCount: 0,
         createdCategories: [],
-        createdBrands: [],
         errors: [{ row: 0, message: error instanceof Error ? error.message : "Import failed" }],
         duration: Date.now() - startTime,
       })

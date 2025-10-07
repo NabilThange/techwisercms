@@ -9,12 +9,11 @@ import { Badge } from "@/components/ui/badge"
 import { CheckCircle2, AlertCircle } from "lucide-react"
 import type { FileParseResult } from "@/lib/file-parsers"
 import type { ColumnMapping } from "@/lib/import-types"
-import type { Category, Brand } from "@/types/database"
+import type { Category } from "@/types/database"
 
 type Props = {
   parseResult: FileParseResult
   categories: Category[]
-  brands: Brand[]
   onBack: () => void
   onNext: (mapping: ColumnMapping) => void
 }
@@ -22,7 +21,8 @@ type Props = {
 const STANDARD_FIELDS = [
   { key: "title", label: "Title", required: true },
   { key: "category", label: "Category", required: true },
-  { key: "brand", label: "Brand", required: false },
+  { key: "brand_name", label: "Brand Name", required: false },
+  { key: "affiliate_url", label: "Affiliate URL", required: true },
   { key: "price", label: "Price", required: true },
   { key: "original_price", label: "Original Price", required: false },
   { key: "rating", label: "Rating", required: true },

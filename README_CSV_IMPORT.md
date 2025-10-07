@@ -19,12 +19,13 @@ The CSV import feature allows you to bulk import products into your TechWiser sh
 
 - **title** - Product name (max 255 characters)
 - **category_id** - Category UUID or category name
+- **affiliate_url** - Affiliate tracking URL (must be a valid URL)
 - **price** - Product price in INR (positive number)
 - **rating** - Product rating (1-5)
 
 ### Optional Columns
 
-- **brand_id** - Brand UUID or brand name
+- **brand_name** - Brand name (free text)
 - **original_price** - Original price for showing discounts
 - **short_description** - Brief description (max 200 characters)
 - **description** - Full product description
@@ -47,33 +48,34 @@ You can use alternative column names:
 - **description**: details, full_description
 - **images**: image_urls, img_urls, photos
 - **category_id**: category, category_name
-- **brand_id**: brand, brand_name
+- **brand_name**: brand, brand_name
+- **affiliate_url**: affiliate, affiliate_link, link
 - **in_stock**: stock, available, availability
 - **youtube_video_id**: youtube_url, video_url, yt_url
 
 ## Example CSV
 
-\`\`\`csv
-title,category_id,brand_id,price,original_price,rating,short_description,description,images,pros,cons,specs,in_stock,featured
-"Awesome Wireless Headphones","Audio","Sony",9999.00,12999.00,4,"Premium wireless headphones","These headphones deliver exceptional audio quality.","https://example.com/img1.jpg,https://example.com/img2.jpg","Great sound|Comfortable fit|Long battery","Expensive|Heavy","Battery:30h|Weight:250g|Bluetooth:5.0",true,false
-\`\`\`
+```csv
+title,category_id,brand_name,affiliate_url,price,original_price,rating,short_description,description,images,pros,cons,specs,in_stock,featured,youtube_video_id
+"Awesome Wireless Headphones","Audio","Sony","https://amzn.to/your-affiliate",9999.00,12999.00,4.5,"Premium wireless headphones","These headphones deliver exceptional audio quality.","https://example.com/img1.jpg,https://example.com/img2.jpg","Great sound|Comfortable fit|Long battery","Expensive|Heavy","Battery:30h|Weight:250g|Bluetooth:5.0",true,false,"dQw4w9WgXcQ"
+```
 
 ## Important Notes
 
-1. **Empty fields are allowed** - Only title, category_id, price, and rating are required
-2. **Category/Brand lookup** - You can use either UUID or name for categories and brands
+1. **Empty fields are allowed** - Only title, category_id, affiliate_url, price, and rating are required
+2. **Category lookup** - You can use either UUID or name for categories
 3. **Automatic slug generation** - Slugs are auto-generated from titles and made unique
 4. **Batch processing** - Large CSVs are processed in batches of 10 to avoid timeouts
 5. **Error handling** - Invalid rows are skipped and reported; valid rows are still imported
 6. **Download failed rows** - After import, you can download a CSV of failed rows with error messages
 
-## Validation Rules
+### Validation Rules
 
 - Title: Required, max 255 characters
+- Affiliate URL: Required, must be a valid URL
 - Price: Required, must be positive number
 - Rating: Required, must be 1-5
 - Category: Required, must exist in database
-- Brand: Optional, must exist if provided
 - Images: Must be valid URLs
 - Booleans: Accept true/false, 1/0, yes/no
 - YouTube: Accepts video ID or full URL (ID will be extracted)

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server"
 import { getSupabaseServerClient } from "@/lib/supabase/server"
 import { generateSlug } from "@/lib/db-utils"
 
-// GET single product with all relations
+// GET single product (with category)
 export async function GET(request: Request, { params }: { params: { id: string } }) {
   try {
     const supabase = await getSupabaseServerClient()
@@ -15,29 +15,6 @@ export async function GET(request: Request, { params }: { params: { id: string }
           id,
           name,
           slug
-        ),
-        brands (
-          id,
-          name,
-          slug
-        ),
-        product_images (
-          id,
-          image_url,
-          alt_text,
-          display_order
-        ),
-        product_specs (
-          id,
-          spec_key,
-          spec_value,
-          display_order
-        ),
-        product_pros_cons (
-          id,
-          content,
-          type,
-          display_order
         )
       `)
       .eq("id", params.id)
@@ -52,53 +29,14 @@ export async function GET(request: Request, { params }: { params: { id: string }
       return NextResponse.json({ error: "Product not found" }, { status: 404 })
     }
 
-    // Organize pros and cons
-    const pros =
-      product.product_pros_cons
-        ?.filter((pc: any) => pc.type === "pro")
-        .sort((a: any, b: any) => a.display_order - b.display_order)
-        .map((pc: any) => pc.content) || []
-
-    const cons =
-      product.product_pros_cons
-        ?.filter((pc: any) => pc.type === "con")
-        .sort((a: any, b: any) => a.display_order - b.display_order)
-        .map((pc: any) => pc.content) || []
-
-    // Organize specs
-    const specs =
-      product.product_specs
-        ?.sort((a: any, b: any) => a.display_order - b.display_order)
-        .map((spec: any) => ({
-          key: spec.spec_key,
-          value: spec.spec_value,
-        })) || []
-
-    // Organize images
-    const images =
-      product.product_images
-        ?.sort((a: any, b: any) => a.display_order - b.display_order)
-        .map((img: any) => ({
-          url: img.image_url,
-          alt_text: img.alt_text,
-        })) || []
-
-    return NextResponse.json({
-      product: {
-        ...product,
-        pros,
-        cons,
-        specs,
-        images,
-      },
-    })
+    return NextResponse.json({ product })
   } catch (error) {
     console.error("[v0] Error fetching product:", error)
     return NextResponse.json({ error: "Failed to fetch product" }, { status: 500 })
   }
 }
 
-// PUT update product
+// PUT update product (new schema)
 export async function PUT(request: Request, { params }: { params: { id: string } }) {
   try {
     const supabase = await getSupabaseServerClient()
@@ -110,8 +48,33 @@ export async function PUT(request: Request, { params }: { params: { id: string }
     if (!body.title || !body.price || !body.category_id) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
     }
+    if (!body.affiliate_url) {
+      return NextResponse.json({ error: "Affiliate URL is required" }, { status: 400 })
+    }
+    try {
+      new URL(body.affiliate_url)
+    } catch {
+      return NextResponse.json({ error: "Affiliate URL must be a valid URL" }, { status: 400 })
+    }
 
-    // Update main product
+    // Normalize additional_images
+    let additional_images: string[] | null = null
+    if (Array.isArray(body.images) && body.images.length > 0) {
+      additional_images = (typeof body.images[0] === "string")
+        ? (body.images as string[])
+        : (body.images as Array<{ url: string }>).map((i) => i.url).filter(Boolean)
+    }
+
+    // Convert specs array to specifications object
+    let specifications: Record<string, string> | null = null
+    if (Array.isArray(body.specs) && body.specs.length > 0) {
+      specifications = {}
+      for (const spec of body.specs) {
+        if (spec?.key && spec?.value) specifications[spec.key] = spec.value
+      }
+    }
+
+    // Update product
     const { data: product, error: updateError } = await supabase
       .from("products")
       .update({
@@ -123,12 +86,18 @@ export async function PUT(request: Request, { params }: { params: { id: string }
         original_price: body.original_price ? Number.parseFloat(body.original_price) : null,
         currency: body.currency || "INR",
         main_image_url: body.main_image_url,
+        additional_images,
         rating: body.rating || 0,
         youtube_video_id: body.youtube_video_id || null,
         in_stock: body.in_stock !== false,
         featured: body.featured || false,
+        is_published: body.in_stock !== false,
         category_id: body.category_id,
-        brand_id: body.brand_id || null,
+        brand_name: body.brand_name || null,
+        affiliate_url: body.affiliate_url,
+        specifications,
+        pros: Array.isArray(body.pros) ? body.pros : null,
+        cons: Array.isArray(body.cons) ? body.cons : null,
       })
       .eq("id", params.id)
       .select()
@@ -137,71 +106,6 @@ export async function PUT(request: Request, { params }: { params: { id: string }
     if (updateError) {
       console.error("[v0] Update error:", updateError)
       throw updateError
-    }
-
-    // Delete existing related data
-    await supabase.from("product_images").delete().eq("product_id", params.id)
-    await supabase.from("product_specs").delete().eq("product_id", params.id)
-    await supabase.from("product_pros_cons").delete().eq("product_id", params.id)
-
-    // Re-insert images
-    if (body.images && body.images.length > 0) {
-      const imageInserts = body.images.map((img: any, index: number) => ({
-        product_id: params.id,
-        image_url: img.url,
-        alt_text: img.alt_text || body.title,
-        display_order: index,
-      }))
-
-      await supabase.from("product_images").insert(imageInserts)
-    }
-
-    // Re-insert specs
-    if (body.specs && body.specs.length > 0) {
-      const specInserts = body.specs
-        .filter((spec: any) => spec.key && spec.value)
-        .map((spec: any, index: number) => ({
-          product_id: params.id,
-          spec_key: spec.key,
-          spec_value: spec.value,
-          display_order: index,
-        }))
-
-      if (specInserts.length > 0) {
-        await supabase.from("product_specs").insert(specInserts)
-      }
-    }
-
-    // Re-insert pros
-    if (body.pros && body.pros.length > 0) {
-      const prosInserts = body.pros
-        .filter((pro: string) => pro.trim())
-        .map((pro: string, index: number) => ({
-          product_id: params.id,
-          content: pro.trim(),
-          type: "pro",
-          display_order: index,
-        }))
-
-      if (prosInserts.length > 0) {
-        await supabase.from("product_pros_cons").insert(prosInserts)
-      }
-    }
-
-    // Re-insert cons
-    if (body.cons && body.cons.length > 0) {
-      const consInserts = body.cons
-        .filter((con: string) => con.trim())
-        .map((con: string, index: number) => ({
-          product_id: params.id,
-          content: con.trim(),
-          type: "con",
-          display_order: index,
-        }))
-
-      if (consInserts.length > 0) {
-        await supabase.from("product_pros_cons").insert(consInserts)
-      }
     }
 
     return NextResponse.json({
@@ -221,7 +125,6 @@ export async function DELETE(request: Request, { params }: { params: { id: strin
 
     console.log("[v0] Deleting product:", params.id)
 
-    // Delete product (cascade will remove related data)
     const { error } = await supabase.from("products").delete().eq("id", params.id)
 
     if (error) {

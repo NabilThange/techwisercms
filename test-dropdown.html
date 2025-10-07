@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dropdown Test</title>
+    <style>
+        body { font-family: system-ui; padding: 20px; }
+        .btn { padding: 8px 16px; background: #3b82f6; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        .btn:hover { background: #2563eb; }
+        .dropdown { position: relative; display: inline-block; }
+        .dropdown-content { 
+            display: none; 
+            position: absolute; 
+            right: 0;
+            background-color: white; 
+            min-width: 120px; 
+            box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2); 
+            z-index: 1000;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        .dropdown-content.show { display: block; }
+        .dropdown-content button { 
+            color: black; 
+            padding: 12px 16px; 
+            text-decoration: none; 
+            display: block; 
+            width: 100%;
+            text-align: left;
+            background: none;
+            border: none;
+            cursor: pointer;
+        }
+        .dropdown-content button:hover { background-color: #f1f1f1; }
+        .dropdown-content .separator { height: 1px; background: #ccc; margin: 4px 0; }
+        .dropdown-content .delete { color: #dc2626; }
+        .dropdown-content .delete:hover { background-color: #fee2e2; }
+    </style>
+</head>
+<body>
+    <h1>Dropdown Test</h1>
+    
+    <div class="dropdown">
+        <button class="btn" onclick="toggleDropdown('dropdown1')">Actions</button>
+        <div id="dropdown1" class="dropdown-content">
+            <button onclick="alert('Edit clicked'); closeAllDropdowns()">Edit</button>
+            <button onclick="alert('Duplicate clicked'); closeAllDropdowns()">Duplicate</button>
+            <div class="separator"></div>
+            <button class="delete" onclick="alert('Delete clicked'); closeAllDropdowns()">Delete</button>
+        </div>
+    </div>
+    
+    <br><br>
+    
+    <div class="dropdown">
+        <button class="btn" onclick="toggleDropdown('dropdown2')" style="background: #6b7280; border: 1px solid #9ca3af;">More</button>
+        <div id="dropdown2" class="dropdown-content">
+            <button onclick="alert('Edit clicked'); closeAllDropdowns()">Edit</button>
+            <button onclick="alert('Duplicate clicked'); closeAllDropdowns()">Duplicate</button>
+            <div class="separator"></div>
+            <button class="delete" onclick="alert('Delete clicked'); closeAllDropdowns()">Delete</button>
+        </div>
+    </div>
+    
+    <script>
+        function toggleDropdown(dropdownId) {
+            closeAllDropdowns();
+            document.getElementById(dropdownId).classList.toggle("show");
+        }
+        
+        function closeAllDropdowns() {
+            var dropdowns = document.getElementsByClassName("dropdown-content");
+            for (var i = 0; i < dropdowns.length; i++) {
+                dropdowns[i].classList.remove('show');
+            }
+        }
+        
+        // Close dropdowns when clicking outside
+        window.onclick = function(event) {
+            if (!event.target.matches('.btn')) {
+                closeAllDropdowns();
+            }
+        }
+        
+        // Close dropdowns when pressing Escape
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape') {
+                closeAllDropdowns();
+            }
+        });
+    </script>
+</body>
+</html>
