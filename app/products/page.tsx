@@ -160,7 +160,7 @@ function ProductsToolbar(props: {
               <SelectItem value="all">All Categories</SelectItem>
               {categories.map((cat) => (
                 <SelectItem key={cat.id} value={cat.id}>
-                  {cat.name}
+                  {cat.title || cat.name}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -307,18 +307,18 @@ function ListView(props: {
               <TableCell>
                 <div className="flex items-center gap-3">
                   <img
-                    src={p.main_image_url || "/placeholder.svg?height=50&width=50&query=product-thumbnail"}
+                    src={p.featured_image_url || "/placeholder.svg?height=50&width=50&query=product-thumbnail"}
                     alt={p.title}
                     className="w-12 h-12 rounded-md object-cover flex-shrink-0 border"
                   />
                   <span className="font-medium break-words line-clamp-2">{p.title}</span>
                 </div>
               </TableCell>
-              <TableCell className="whitespace-nowrap font-semibold">{formatPrice(p.price, p.currency)}</TableCell>
+              <TableCell className="whitespace-nowrap font-semibold">{formatPrice(p.min_price, "INR")}</TableCell>
               <TableCell>
                 <div className="flex flex-col gap-1">
-<span className="text-sm break-words">{p.brand_name || "N/A"}</span>
-                  <span className="text-xs text-muted-foreground break-words">{p.categories?.name || "N/A"}</span>
+                  <span className="text-sm break-words">{p.product_type || "N/A"}</span>
+                  <span className="text-xs text-muted-foreground break-words">{p.collections?.title || "N/A"}</span>
                 </div>
               </TableCell>
               <TableCell className="text-right">
@@ -343,26 +343,28 @@ function GridView(props: {
         <Card key={p.id} className="flex flex-col hover:shadow-lg transition-shadow relative">
           <div className="aspect-video bg-muted relative overflow-hidden rounded-t-lg">
             <img
-              src={p.main_image_url || "/placeholder.svg?height=240&width=360"}
+              src={p.featured_image_url || "/placeholder.svg?height=240&width=360"}
               alt={p.title}
               className="w-full h-full object-cover"
             />
-            {p.featured && <Badge className="absolute top-2 right-2">Featured</Badge>}
           </div>
           <CardContent className="p-4 flex-1 flex flex-col gap-3">
             <div className="flex-1">
               <h3 className="font-semibold text-base line-clamp-2 mb-2">{p.title}</h3>
               <div className="text-sm text-muted-foreground mb-2">
-<span>{p.brand_name || "N/A"}</span>
+                <span>{p.product_type || "N/A"}</span>
                 <span className="mx-1">•</span>
-                <span>{p.categories?.name || "N/A"}</span>
+                <span>{p.collections?.title || "N/A"}</span>
               </div>
-              <p className="text-lg font-bold">{formatPrice(p.price, p.currency)}</p>
+              <p className="text-lg font-bold">{formatPrice(p.min_price, "INR")}</p>
+              {p.max_price > p.min_price && (
+                <p className="text-sm text-muted-foreground line-through">{formatPrice(p.max_price, "INR")}</p>
+              )}
             </div>
 
             <div className="flex items-center justify-between border-t pt-3">
-              <RatingStars value={p.rating} />
-              <ProductStatusBadge inStock={p.in_stock} />
+              <span className="text-sm text-muted-foreground">{p.handle}</span>
+              <Badge variant="secondary">{p.variants?.length || 0} variants</Badge>
             </div>
 
             <div className="flex gap-2">
@@ -509,10 +511,7 @@ const [products, setProducts] = React.useState<ProductWithCategory[]>([])
   const filtered = React.useMemo(() => {
     let rows = products.slice()
 
-    if (rating !== "all") {
-      const min = Number(rating)
-      rows = rows.filter((r) => r.rating >= min)
-    }
+    // Rating filter removed (not in new schema)
 
     switch (sort) {
       case "date-new":
@@ -528,14 +527,12 @@ const [products, setProducts] = React.useState<ProductWithCategory[]>([])
         rows.sort((a, b) => b.title.localeCompare(a.title))
         break
       case "rating-high":
-        rows.sort((a, b) => b.rating - a.rating)
-        break
       case "rating-low":
-        rows.sort((a, b) => a.rating - b.rating)
+        // Rating sort not available in new schema
         break
     }
     return rows
-  }, [products, rating, sort])
+  }, [products, sort])
 
   const pagedIds = filtered.map((p) => p.id)
 
@@ -562,11 +559,11 @@ const [products, setProducts] = React.useState<ProductWithCategory[]>([])
     const exportData = filtered.map((p) => ({
       id: p.id,
       title: p.title,
-brand: p.brand_name || "",
-      category: p.categories?.name || "",
-      price: p.price,
-      rating: p.rating,
-      in_stock: p.in_stock,
+      handle: p.handle,
+      product_type: p.product_type || "",
+      collection: p.collections?.title || "",
+      min_price: p.min_price,
+      max_price: p.max_price,
     }))
     const csv = toCSV(exportData)
     const blob = new Blob([csv], { type: "text/csv" })

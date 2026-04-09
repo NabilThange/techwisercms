@@ -1,8 +1,14 @@
 import { NextResponse } from "next/server"
 import { getSupabaseServerClient } from "@/lib/supabase/server"
-import { generateSlug } from "@/lib/db-utils"
 
-// GET single product (with category)
+function generateSlug(title: string): string {
+  return title
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+}
+
+// GET single product (with collection, images, variants)
 export async function GET(request: Request, { params }: { params: { id: string } }) {
   try {
     const supabase = await getSupabaseServerClient()
@@ -11,10 +17,24 @@ export async function GET(request: Request, { params }: { params: { id: string }
       .from("products")
       .select(`
         *,
-        categories (
+        collections (
           id,
-          name,
-          slug
+          title,
+          handle
+        ),
+        product_images (
+          id,
+          image_url,
+          alt_text,
+          display_order
+        ),
+        variants (
+          id,
+          title,
+          sku,
+          price,
+          compare_at_price,
+          available_for_sale
         )
       `)
       .eq("id", params.id)
@@ -45,29 +65,20 @@ export async function PUT(request: Request, { params }: { params: { id: string }
     console.log("[v0] Updating product:", params.id)
 
     // Validate required fields
-    if (!body.title || !body.price || !body.category_id) {
-      return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
-    }
-    if (!body.affiliate_url) {
-      return NextResponse.json({ error: "Affiliate URL is required" }, { status: 400 })
-    }
-    try {
-      new URL(body.affiliate_url)
-    } catch {
-      return NextResponse.json({ error: "Affiliate URL must be a valid URL" }, { status: 400 })
+    if (!body.title) {
+      return NextResponse.json({ error: "Title is required" }, { status: 400 })
     }
 
-    // Normalize additional_images
-    let additional_images: string[] | null = null
-    if (Array.isArray(body.images) && body.images.length > 0) {
-      additional_images = (typeof body.images[0] === "string")
-        ? (body.images as string[])
-        : (body.images as Array<{ url: string }>).map((i) => i.url).filter(Boolean)
+    const price = Number.parseFloat(body.price || body.min_price || "0")
+    if (price <= 0) {
+      return NextResponse.json({ error: "Valid price is required" }, { status: 400 })
     }
 
-    // Convert specs array to specifications object
-    let specifications: Record<string, string> | null = null
-    if (Array.isArray(body.specs) && body.specs.length > 0) {
+    // Convert specifications
+    let specifications: Record<string, any> | null = null
+    if (body.specifications) {
+      specifications = body.specifications
+    } else if (Array.isArray(body.specs) && body.specs.length > 0) {
       specifications = {}
       for (const spec of body.specs) {
         if (spec?.key && spec?.value) specifications[spec.key] = spec.value
@@ -79,25 +90,16 @@ export async function PUT(request: Request, { params }: { params: { id: string }
       .from("products")
       .update({
         title: body.title,
-        slug: body.slug || generateSlug(body.title),
-        short_description: body.short_description || null,
-        description: body.description || null,
-        price: Number.parseFloat(body.price),
-        original_price: body.original_price ? Number.parseFloat(body.original_price) : null,
-        currency: body.currency || "INR",
-        main_image_url: body.main_image_url,
-        additional_images,
-        rating: body.rating || 0,
-        youtube_video_id: body.youtube_video_id || null,
-        in_stock: body.in_stock !== false,
-        featured: body.featured || false,
-        is_published: body.in_stock !== false,
-        category_id: body.category_id,
-        brand_name: body.brand_name || null,
-        affiliate_url: body.affiliate_url,
-        specifications,
-        pros: Array.isArray(body.pros) ? body.pros : null,
-        cons: Array.isArray(body.cons) ? body.cons : null,
+        handle: body.handle || generateSlug(body.title),
+        description: body.description || body.short_description || null,
+        description_html: body.description_html || null,
+        product_type: body.product_type || null,
+        collection_id: body.collection_id || body.category_id || null,
+        featured_image_url: body.featured_image_url || body.main_image_url || null,
+        featured_image_alt_text: body.featured_image_alt_text || body.title,
+        min_price: price,
+        max_price: Number.parseFloat(body.max_price || body.original_price || body.price || "0"),
+        specifications: specifications,
       })
       .eq("id", params.id)
       .select()
@@ -106,6 +108,45 @@ export async function PUT(request: Request, { params }: { params: { id: string }
     if (updateError) {
       console.error("[v0] Update error:", updateError)
       throw updateError
+    }
+
+    // Update product images if provided
+    if (body.images && Array.isArray(body.images)) {
+      // Delete existing images
+      await supabase.from("product_images").delete().eq("product_id", params.id)
+
+      // Insert new images
+      if (body.images.length > 0) {
+        const imageInserts = body.images.map((img: any, index: number) => ({
+          product_id: params.id,
+          image_url: typeof img === "string" ? img : img.url || img.image_url,
+          alt_text: typeof img === "object" ? img.alt_text : body.title,
+          display_order: typeof img === "object" ? img.display_order : index,
+        }))
+
+        await supabase.from("product_images").insert(imageInserts)
+      }
+    }
+
+    // Update variants if provided
+    if (body.variants && Array.isArray(body.variants)) {
+      // Delete existing variants
+      await supabase.from("variants").delete().eq("product_id", params.id)
+
+      // Insert new variants
+      if (body.variants.length > 0) {
+        const variantInserts = body.variants.map((v: any, index: number) => ({
+          product_id: params.id,
+          title: v.title || body.title,
+          sku: v.sku || null,
+          price: Number.parseFloat(v.price || body.price),
+          compare_at_price: v.compare_at_price ? Number.parseFloat(v.compare_at_price) : null,
+          available_for_sale: v.available_for_sale !== false,
+          position: index,
+        }))
+
+        await supabase.from("variants").insert(variantInserts)
+      }
     }
 
     return NextResponse.json({
@@ -125,6 +166,7 @@ export async function DELETE(request: Request, { params }: { params: { id: strin
 
     console.log("[v0] Deleting product:", params.id)
 
+    // Delete product (cascade will handle images and variants)
     const { error } = await supabase.from("products").delete().eq("id", params.id)
 
     if (error) {

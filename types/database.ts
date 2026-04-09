@@ -1,63 +1,101 @@
+// Updated to match Techwiser_shop schema (collections-based)
+export interface Collection {
+  id: string
+  title: string
+  handle: string
+  description?: string
+  image_url?: string
+  image_alt_text?: string
+  created_at: string
+  updated_at: string
+}
+
 export interface Product {
   id: string
-  slug: string
+  collection_id?: string
   title: string
-  short_description?: string
+  handle: string
   description?: string
-  price: number
-  original_price?: number
-  currency: string
-  main_image_url: string
-  additional_images?: string[]
-  rating: number
-  review_count: number
-  youtube_video_id?: string
-  in_stock: boolean
-  featured: boolean
-  is_published: boolean
-  affiliate_url: string
-  brand_name?: string
-  specifications?: Record<string, string>
-  pros?: string[]
-  cons?: string[]
-  category_id: string
+  description_html?: string
+  product_type?: string
+  featured_image_url?: string
+  featured_image_alt_text?: string
+  featured_image_thumbhash?: string
+  min_price: number
+  max_price: number
+  specifications?: Record<string, any>
   created_at: string
   updated_at: string
 }
 
-export interface Category {
+export interface ProductImage {
   id: string
+  product_id: string
+  image_url: string
+  alt_text?: string
+  thumbhash?: string
+  display_order: number
+  created_at: string
+}
+
+export interface ProductOption {
+  id: string
+  product_id: string
   name: string
-  slug: string
-  description?: string
+  position?: number
+  created_at: string
+}
+
+export interface ProductOptionValue {
+  id: string
+  option_id: string
+  value: string
+  created_at: string
+}
+
+export interface Variant {
+  id: string
+  product_id: string
+  title: string
+  sku?: string
+  price: number
+  compare_at_price?: number
+  available_for_sale: boolean
+  position?: number
   created_at: string
   updated_at: string
 }
 
-export interface ProductWithCategory extends Product {
-  categories?: Category
+export interface ProductWithDetails extends Product {
+  collections?: Collection
+  product_images?: ProductImage[]
+  variants?: Variant[]
 }
+
+// Legacy compatibility type (maps old schema to new)
+export interface Category extends Collection {}
 
 export interface ProductFormData {
   title: string
-  short_description?: string
+  handle?: string
   description?: string
-  price: string
-  original_price?: string
-  currency: string
-  category_id: string
-  youtube_video_id?: string
-  in_stock: boolean
-  featured: boolean
-  rating: number
-  main_image_url: string
-  images: string[]
-  specs: Array<{
-    key: string
-    value: string
+  description_html?: string
+  product_type?: string
+  collection_id?: string
+  featured_image_url?: string
+  featured_image_alt_text?: string
+  min_price: string
+  max_price: string
+  specifications?: Record<string, any>
+  images?: Array<{
+    url: string
+    alt_text?: string
+    display_order: number
   }>
-  pros: string[]
-  cons: string[]
-  brand_name?: string
-  affiliate_url: string
+  variants?: Array<{
+    title: string
+    sku?: string
+    price: string
+    available_for_sale: boolean
+  }>
 }

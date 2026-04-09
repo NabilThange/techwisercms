@@ -1,6 +1,12 @@
 import { NextResponse } from "next/server"
 import { getSupabaseServerClient } from "@/lib/supabase/server"
-import { generateSlug } from "@/lib/db-utils"
+
+function generateSlug(title: string): string {
+  return title
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+}
 
 // GET all products with filters and pagination
 export async function GET(request: Request) {
@@ -9,10 +15,8 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url)
 
     // Get filter parameters
-    const category = searchParams.get("category")
+    const collection = searchParams.get("category") || searchParams.get("collection")
     const search = searchParams.get("search")
-    const featured = searchParams.get("featured")
-    const inStock = searchParams.get("in_stock")
     const page = Number.parseInt(searchParams.get("page") || "1")
     const limit = Number.parseInt(searchParams.get("limit") || "20")
 
@@ -20,16 +24,29 @@ export async function GET(request: Request) {
     const from = (page - 1) * limit
     const to = from + limit - 1
 
-    // Build query
+    // Build query - updated for new schema
     let query = supabase
       .from("products")
       .select(
         `
         *,
-        categories (
+        collections (
           id,
-          name,
-          slug
+          title,
+          handle
+        ),
+        product_images (
+          id,
+          image_url,
+          alt_text,
+          display_order
+        ),
+        variants (
+          id,
+          title,
+          sku,
+          price,
+          available_for_sale
         )
       `,
         { count: "exact" },
@@ -38,23 +55,13 @@ export async function GET(request: Request) {
       .range(from, to)
 
     // Apply filters
-    if (category && category !== "all") {
-      query = query.eq("category_id", category)
+    if (collection && collection !== "all") {
+      query = query.eq("collection_id", collection)
     }
 
     if (search) {
-      // search in title/description/brand_name
-      query = query.or(`title.ilike.%${search}%,description.ilike.%${search}%,brand_name.ilike.%${search}%`)
-    }
-
-    if (featured === "true") {
-      query = query.eq("featured", true)
-    }
-
-    if (inStock === "true") {
-      query = query.eq("in_stock", true)
-    } else if (inStock === "false") {
-      query = query.eq("in_stock", false)
+      // Search in title and description
+      query = query.or(`title.ilike.%${search}%,description.ilike.%${search}%`)
     }
 
     const { data, error, count } = await query
@@ -90,74 +97,45 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Product title is required" }, { status: 400 })
     }
 
-    if (!body.price || Number.parseFloat(body.price) <= 0) {
+    const price = Number.parseFloat(body.price || body.min_price || "0")
+    if (price <= 0) {
       return NextResponse.json({ error: "Valid price is required" }, { status: 400 })
     }
 
-    if (!body.category_id) {
-      return NextResponse.json({ error: "Category is required" }, { status: 400 })
+    const collectionId = body.collection_id || body.category_id
+    if (!collectionId) {
+      return NextResponse.json({ error: "Collection/Category is required" }, { status: 400 })
     }
 
-    if (!body.main_image_url) {
-      return NextResponse.json({ error: "Main product image is required" }, { status: 400 })
-    }
+    // Generate unique slug
+    const slug = body.handle || generateSlug(body.title)
 
-    if (!body.affiliate_url) {
-      return NextResponse.json({ error: "Affiliate URL is required" }, { status: 400 })
-    }
-    try {
-      new URL(body.affiliate_url)
-    } catch {
-      return NextResponse.json({ error: "Affiliate URL must be a valid URL" }, { status: 400 })
-    }
-
-    // Normalize images array to additional_images (array of URLs)
-    let additional_images: string[] | undefined
-    if (Array.isArray(body.images) && body.images.length > 0) {
-      if (typeof body.images[0] === "string") {
-        additional_images = body.images as string[]
-      } else {
-        additional_images = (body.images as Array<{ url: string }>).map((i) => i.url).filter(Boolean)
-      }
-    }
-
-    // Convert specs array to specifications object
-    let specifications: Record<string, string> | undefined
-    if (Array.isArray(body.specs) && body.specs.length > 0) {
+    // Convert specifications
+    let specifications: Record<string, any> | undefined
+    if (body.specifications) {
+      specifications = body.specifications
+    } else if (Array.isArray(body.specs) && body.specs.length > 0) {
       specifications = {}
       for (const spec of body.specs) {
         if (spec?.key && spec?.value) specifications[spec.key] = spec.value
       }
     }
 
-    // Generate unique slug
-    const slug = generateSlug(body.title)
-
-    // Insert product aligned to new schema
+    // Insert product with new schema
     const { data: product, error: productError } = await supabase
       .from("products")
       .insert({
         title: body.title,
-        slug,
-        short_description: body.short_description || null,
-        description: body.description || null,
-        price: Number.parseFloat(body.price),
-        original_price: body.original_price ? Number.parseFloat(body.original_price) : null,
-        currency: body.currency || "INR",
-        main_image_url: body.main_image_url,
-        additional_images: additional_images || null,
-        rating: body.rating || 0,
-        review_count: 0,
-        youtube_video_id: body.youtube_video_id || null,
-        in_stock: body.in_stock !== false,
-        featured: body.featured || false,
-        is_published: body.in_stock !== false, // publish if in stock by default
-        category_id: body.category_id,
-        brand_name: body.brand_name || null,
-        affiliate_url: body.affiliate_url,
+        handle: slug,
+        description: body.description || body.short_description || null,
+        description_html: body.description_html || null,
+        product_type: body.product_type || null,
+        collection_id: collectionId,
+        featured_image_url: body.featured_image_url || body.main_image_url || null,
+        featured_image_alt_text: body.featured_image_alt_text || body.title,
+        min_price: price,
+        max_price: Number.parseFloat(body.max_price || body.original_price || body.price || "0"),
         specifications: specifications || null,
-        pros: Array.isArray(body.pros) ? body.pros : null,
-        cons: Array.isArray(body.cons) ? body.cons : null,
       })
       .select()
       .single()
@@ -168,6 +146,55 @@ export async function POST(request: Request) {
     }
 
     console.log("[v0] Product created:", product.id)
+
+    // Insert product images if provided
+    if (body.images && Array.isArray(body.images) && body.images.length > 0) {
+      const imageInserts = body.images.map((img: any, index: number) => ({
+        product_id: product.id,
+        image_url: typeof img === "string" ? img : img.url || img.image_url,
+        alt_text: typeof img === "object" ? img.alt_text : body.title,
+        display_order: typeof img === "object" ? img.display_order : index,
+      }))
+
+      const { error: imagesError } = await supabase.from("product_images").insert(imageInserts)
+
+      if (imagesError) {
+        console.error("[v0] Error inserting images:", imagesError)
+      }
+    }
+
+    // Create default variant if variants provided
+    if (body.variants && Array.isArray(body.variants) && body.variants.length > 0) {
+      const variantInserts = body.variants.map((v: any, index: number) => ({
+        product_id: product.id,
+        title: v.title || body.title,
+        sku: v.sku || null,
+        price: Number.parseFloat(v.price || body.price),
+        compare_at_price: v.compare_at_price ? Number.parseFloat(v.compare_at_price) : null,
+        available_for_sale: v.available_for_sale !== false,
+        position: index,
+      }))
+
+      const { error: variantsError } = await supabase.from("variants").insert(variantInserts)
+
+      if (variantsError) {
+        console.error("[v0] Error inserting variants:", variantsError)
+      }
+    } else {
+      // Create single default variant
+      const { error: variantError } = await supabase.from("variants").insert({
+        product_id: product.id,
+        title: body.title,
+        sku: body.sku || null,
+        price: price,
+        available_for_sale: true,
+        position: 0,
+      })
+
+      if (variantError) {
+        console.error("[v0] Error creating default variant:", variantError)
+      }
+    }
 
     return NextResponse.json(
       {

@@ -105,34 +105,45 @@ export default function EditProductDialog({ productId, open, onOpenChange, onSuc
       }
 
       const data = await response.json()
-      const product: ProductWithCategory = data.product
+      const product = data.product
 
       console.log("[v0] Product loaded:", product)
 
-      // Populate form fields
-      setTitle(product.title)
-      setCategoryId(product.category_id)
-      setBrandName(product.brand_name || "")
-      setShortDescription(product.short_description || "")
-      setDescription(product.description || "")
-      setPrice(product.price.toString())
-      setOriginalPrice(product.original_price?.toString() || "")
-      setMainImageUrl(product.main_image_url)
-      setYtUrl(product.youtube_video_id ? `https://www.youtube.com/watch?v=${product.youtube_video_id}` : "")
-      setRating(product.rating)
-      setInStock(product.in_stock)
-      setFeatured(product.featured)
-      setAffiliateUrl(product.affiliate_url || "")
+      // Map new schema fields to form state
+      setTitle(product.title || "")
+      setCategoryId(product.collection_id || "")
+      setBrandName(product.product_type || "")
+      setShortDescription(product.description || "")
+      setDescription(product.description_html || product.description || "")
+      setPrice(product.min_price?.toString() || "0")
+      setOriginalPrice(product.max_price?.toString() || "")
+      setMainImageUrl(product.featured_image_url || "")
+      setYtUrl("") // Not in new schema
+      setRating(0) // Not in new schema
+      setInStock(true) // Not in new schema
+      setFeatured(false) // Not in new schema
+      setAffiliateUrl("") // Not in new schema
 
-      // Populate pros, cons, specs, images from product JSONB fields
-      setPros((product.pros as string[]) || [""])
-      setCons((product.cons as string[]) || [""])
+      // Handle specifications
       const specsArray = product.specifications
-        ? Object.entries(product.specifications).map(([key, value]) => ({ key, value: String(value) }))
+        ? Object.entries(product.specifications).map(([key, value]) => ({ 
+            key, 
+            value: typeof value === 'object' ? JSON.stringify(value) : String(value) 
+          }))
         : [{ key: "", value: "" }]
-      setSpecs(specsArray as Array<{ key: string; value: string }>)
-      const imageUrls = (product.additional_images as string[]) || []
+      setSpecs(specsArray)
+
+      // Handle images from product_images table
+      const imageUrls = product.product_images
+        ? product.product_images
+            .sort((a: any, b: any) => a.display_order - b.display_order)
+            .map((img: any) => img.image_url)
+        : []
       setImages(imageUrls)
+
+      // Pros/cons not in new schema
+      setPros([""])
+      setCons([""])
     } catch (error) {
       console.error("[v0] Error fetching product:", error)
       toast({
@@ -156,16 +167,9 @@ export default function EditProductDialog({ productId, open, onOpenChange, onSuc
 
   function validate(): string | null {
     if (!title.trim() || title.length > 255) return "Product name is required and must be under 255 characters."
-    if (!categoryId) return "Please select a category."
+    if (!categoryId) return "Please select a collection/category."
     if (!price || Number.parseFloat(price) <= 0) return "Valid price is required."
-    if (rating < 1 || rating > 5) return "Overall rating must be between 1 and 5."
-    if (!mainImageUrl) return "Main product image is required."
-    try {
-      if (!affiliateUrl) return "Affiliate URL is required."
-      new URL(affiliateUrl)
-    } catch {
-      return "Affiliate URL must be a valid URL."
-    }
+    if (!mainImageUrl && images.length === 0) return "At least one product image is required."
     return null
   }
 
@@ -180,25 +184,29 @@ export default function EditProductDialog({ productId, open, onOpenChange, onSuc
     try {
       console.log("[v0] Updating product:", productId)
 
+      // Convert specs to object
+      const specifications: Record<string, any> = {}
+      specs.filter(s => s.key && s.value).forEach(s => {
+        specifications[s.key] = s.value
+      })
+
       const productData = {
         title,
-        short_description: shortDescription || null,
-        description: description || null,
-        price,
-        original_price: originalPrice || null,
-        currency: "INR",
-        main_image_url: mainImageUrl,
-        rating,
-        youtube_video_id: ytId || null,
-        in_stock: inStock,
-        featured,
-        category_id: categoryId,
-        brand_name: brandName || null,
-        affiliate_url: affiliateUrl,
-        images: images,
-        specs: specs.filter((s) => s.key && s.value),
-        pros: pros.filter((p) => p.trim()),
-        cons: cons.filter((c) => c.trim()),
+        handle: title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, ''),
+        description: shortDescription || description || null,
+        description_html: description || null,
+        product_type: brandName || null,
+        collection_id: categoryId,
+        featured_image_url: mainImageUrl || (images.length > 0 ? images[0] : null),
+        featured_image_alt_text: title,
+        min_price: price,
+        max_price: originalPrice || price,
+        specifications: Object.keys(specifications).length > 0 ? specifications : null,
+        images: images.map((url, index) => ({
+          url,
+          alt_text: title,
+          display_order: index
+        }))
       }
 
       const response = await fetch(`/api/products/${productId}`, {
@@ -285,18 +293,18 @@ export default function EditProductDialog({ productId, open, onOpenChange, onSuc
                       <SelectContent>
                         {categories.map((c) => (
                           <SelectItem key={c.id} value={c.id}>
-                            {c.name}
+                            {c.title || c.name}
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
                   </div>
                   <div>
-                    <Label>Brand (optional)</Label>
+                    <Label>Product Type (optional)</Label>
                     <Input
                       value={brandName}
                       onChange={(e) => setBrandName(e.target.value)}
-                      placeholder="Enter brand name"
+                      placeholder="e.g., Smartphone, Laptop, etc."
                     />
                   </div>
                   <div>
@@ -311,14 +319,14 @@ export default function EditProductDialog({ productId, open, onOpenChange, onSuc
                     />
                   </div>
                   <div>
-                    <Label htmlFor="originalPrice">Original Price (₹)</Label>
+                    <Label htmlFor="originalPrice">Max Price (₹)</Label>
                     <Input
                       id="originalPrice"
                       type="number"
                       step="0.01"
                       value={originalPrice}
                       onChange={(e) => setOriginalPrice(e.target.value)}
-                      placeholder="Optional"
+                      placeholder="Optional - for price range"
                     />
                   </div>
                   <div className="sm:col-span-2">

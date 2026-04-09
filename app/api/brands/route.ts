@@ -1,11 +1,17 @@
 import { NextResponse } from "next/server"
 import { getSupabaseServerClient } from "@/lib/supabase/server"
 
+// Note: The new schema uses collections instead of brands
+// This endpoint is deprecated but kept for backward compatibility
 export async function GET() {
   try {
     const supabase = await getSupabaseServerClient()
 
-    const { data, error } = await supabase.from("brands").select("*").order("name")
+    // Query collections as brands for backward compatibility
+    const { data, error } = await supabase
+      .from("collections")
+      .select("id, title as name, handle as slug, description, image_url as logo_url")
+      .order("title")
 
     if (error) {
       console.error("[v0] Error fetching brands:", error)
@@ -28,21 +34,23 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Name and slug are required" }, { status: 400 })
     }
 
-    // Check if brand already exists
-    const { data: existing } = await supabase.from("brands").select("id").eq("name", body.name).single()
+    // Create as collection instead
+    const { data: existing } = await supabase
+      .from("collections")
+      .select("id")
+      .eq("title", body.name)
+      .single()
 
     if (existing) {
       return NextResponse.json({ brand: existing }, { status: 200 })
     }
 
-    // Create new brand
     const { data, error } = await supabase
-      .from("brands")
+      .from("collections")
       .insert({
-        name: body.name,
-        slug: body.slug,
-        logo_url: body.logo_url || null,
-        website_url: body.website_url || null,
+        title: body.name,
+        handle: body.slug,
+        image_url: body.logo_url || null,
         description: body.description || null,
       })
       .select()
