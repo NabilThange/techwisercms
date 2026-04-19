@@ -57,7 +57,7 @@ function ProductActionMenu({
           {buttonText}
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" sideOffset={5}>
+      <DropdownMenuContent align="end" sideOffset={5} className="z-50">
         <DropdownMenuItem 
           onClick={() => handleAction("edit")}
           className="cursor-pointer"
@@ -381,7 +381,7 @@ function GridView(props: {
                 onAction={onAction} 
                 buttonText="More"
                 buttonVariant="outline"
-                buttonClassName="hover:bg-gray-50"
+                buttonClassName="flex-shrink-0 border-gray-300 hover:bg-gray-100 hover:border-gray-400 text-gray-700 font-medium"
               />
             </div>
           </CardContent>

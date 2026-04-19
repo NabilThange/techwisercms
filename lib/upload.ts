@@ -21,7 +21,7 @@ export async function uploadProductImage(file: File, productId: string): Promise
     const filePath = `products/${fileName}`
 
     // Upload to Supabase Storage
-    const { data, error } = await supabase.storage.from("product-images").upload(filePath, file, {
+    const { data, error } = await supabase.storage.from("images").upload(filePath, file, {
       cacheControl: "3600",
       upsert: false,
     })
@@ -32,7 +32,7 @@ export async function uploadProductImage(file: File, productId: string): Promise
     }
 
     // Get public URL
-    const { data: urlData } = supabase.storage.from("product-images").getPublicUrl(filePath)
+    const { data: urlData } = supabase.storage.from("images").getPublicUrl(filePath)
 
     return urlData.publicUrl
   } catch (error) {
@@ -46,12 +46,12 @@ export async function deleteProductImage(imageUrl: string): Promise<void> {
     const supabase = getSupabaseBrowserClient()
 
     // Extract file path from URL
-    const urlParts = imageUrl.split("/product-images/")
+    const urlParts = imageUrl.split("/images/")
     if (urlParts.length < 2) return
 
     const filePath = urlParts[1]
 
-    await supabase.storage.from("product-images").remove([filePath])
+    await supabase.storage.from("images").remove([filePath])
   } catch (error) {
     console.error("Error deleting image:", error)
   }

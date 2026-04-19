@@ -26,7 +26,7 @@ export async function POST(request: Request) {
     const buffer = Buffer.from(arrayBuffer)
 
     // Upload to Supabase Storage
-    const { data, error } = await supabase.storage.from("product-images").upload(filePath, buffer, {
+    const { data, error } = await supabase.storage.from("images").upload(filePath, buffer, {
       contentType: file.type,
       upsert: false,
     })
@@ -41,7 +41,7 @@ export async function POST(request: Request) {
     // Get public URL
     const {
       data: { publicUrl },
-    } = supabase.storage.from("product-images").getPublicUrl(filePath)
+    } = supabase.storage.from("images").getPublicUrl(filePath)
 
     console.log("[v0] Public URL:", publicUrl)
 
