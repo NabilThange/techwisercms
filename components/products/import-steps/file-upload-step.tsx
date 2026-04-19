@@ -8,6 +8,7 @@ import { Upload, Download, FileSpreadsheet, AlertCircle } from "lucide-react"
 import { parseFile, type FileParseResult } from "@/lib/file-parsers"
 import { useToast } from "@/components/ui/use-toast"
 import { CSVFormatGuide } from "../csv-format-guide"
+import * as XLSX from "xlsx"
 
 type Props = {
   onNext: (result: FileParseResult) => void
@@ -85,28 +86,93 @@ export function FileUploadStep({ onNext }: Props) {
       "featured",
     ]
 
-    const exampleRow = [
-      "Premium Wireless Headphones",
-      "Audio",
-      "Sony",
-      "9999.00",
-      "12999.00",
-      "Premium wireless headphones with noise cancellation",
-      "These headphones deliver exceptional audio quality with deep bass and crystal clear highs. Features active noise cancellation and 30-hour battery life.",
-      "https://example.com/img1.jpg,https://example.com/img2.jpg",
-      "Battery:30 hours|Weight:250g|Bluetooth:5.0|Driver:40mm",
-      "true",
-      "true",
+    const exampleRows = [
+      [
+        "Premium Wireless Headphones",
+        "Audio",
+        "Sony",
+        9999.00,
+        12999.00,
+        "Premium wireless headphones with noise cancellation",
+        "These headphones deliver exceptional audio quality with deep bass and crystal clear highs. Features active noise cancellation and 30-hour battery life.",
+        "https://example.com/img1.jpg,https://example.com/img2.jpg",
+        "Battery:30 hours|Weight:250g|Bluetooth:5.0|Driver:40mm",
+        true,
+        true,
+      ],
+      [
+        "iPhone 15 Pro",
+        "Smartphones",
+        "Apple",
+        99999.00,
+        129999.00,
+        "Latest flagship smartphone from Apple",
+        "Advanced camera system with computational photography. A17 Pro chip for exceptional performance.",
+        "https://example.com/iphone1.jpg,https://example.com/iphone2.jpg",
+        "Storage:256GB|RAM:8GB|Display:6.1 inch|Processor:A17 Pro",
+        true,
+        true,
+      ],
+      [
+        "MacBook Pro 16",
+        "Laptops",
+        "Apple",
+        189999.00,
+        219999.00,
+        "Professional laptop for creators",
+        "M3 Max chip with 12-core CPU. Perfect for video editing, 3D rendering, and development.",
+        "https://example.com/macbook1.jpg",
+        "Processor:M3 Max|RAM:36GB|Storage:512GB|Display:16 inch",
+        true,
+        false,
+      ],
     ]
 
-    const csv = `${headers.join(",")}\n${exampleRow.map((v) => `"${v}"`).join(",")}\n`
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement("a")
-    a.href = url
-    a.download = "products-import-template.csv"
-    a.click()
-    URL.revokeObjectURL(url)
+    // Create workbook and worksheet
+    const workbook = XLSX.utils.book_new()
+    const worksheetData = [headers, ...exampleRows]
+    const worksheet = XLSX.utils.aoa_to_sheet(worksheetData)
+
+    // Set column widths
+    const columnWidths = [
+      { wch: 25 }, // title
+      { wch: 15 }, // category
+      { wch: 15 }, // brand_name
+      { wch: 12 }, // price
+      { wch: 15 }, // original_price
+      { wch: 30 }, // short_description
+      { wch: 40 }, // description
+      { wch: 35 }, // images
+      { wch: 35 }, // specs
+      { wch: 10 }, // in_stock
+      { wch: 10 }, // featured
+    ]
+    worksheet["!cols"] = columnWidths
+
+    // Style header row
+    const headerStyle = {
+      font: { bold: true, color: { rgb: "FFFFFF" } },
+      fill: { fgColor: { rgb: "4472C4" } },
+      alignment: { horizontal: "center", vertical: "center", wrapText: true },
+    }
+
+    headers.forEach((_, index) => {
+      const cellRef = XLSX.utils.encode_col(index) + "1"
+      if (worksheet[cellRef]) {
+        worksheet[cellRef].s = headerStyle
+      }
+    })
+
+    // Add worksheet to workbook
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Products")
+
+    // Generate Excel file
+    XLSX.writeFile(workbook, "products-import-template.xlsx")
+
+    toast({
+      title: "Template Downloaded",
+      description: "Excel template with example products has been downloaded",
+    })
   }
 
   return (
