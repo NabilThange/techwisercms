@@ -1,8 +1,14 @@
 import { NextResponse } from "next/server"
 import { getSupabaseServerClient } from "@/lib/supabase/server"
-import { generateSlug } from "@/lib/db-utils"
 
-// POST endpoint for CSV import (single product)
+function generateHandle(title: string): string {
+  return title
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+}
+
+// POST endpoint for CSV import (single product) — new schema
 export async function POST(request: Request) {
   try {
     const supabase = await getSupabaseServerClient()
@@ -10,42 +16,24 @@ export async function POST(request: Request) {
 
     console.log("[v0] Importing product:", body.title)
 
-    // Validate required fields
-    if (!body.title || !body.price || !body.category_id || !body.rating) {
-      return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
-    }
-    if (!body.affiliate_url) {
-      return NextResponse.json({ error: "Affiliate URL is required" }, { status: 400 })
-    }
-    try {
-      new URL(body.affiliate_url)
-    } catch {
-      return NextResponse.json({ error: "Affiliate URL must be a valid URL" }, { status: 400 })
+    // Validate required fields (new schema — no affiliate_url or rating required)
+    if (!body.title) {
+      return NextResponse.json({ error: "Title is required" }, { status: 400 })
     }
 
-    // Generate unique slug
-    let slug = generateSlug(body.title)
-
-    // Ensure slug is unique
-    let slugExists = true
-    let counter = 1
-    while (slugExists) {
-      const { data } = await supabase.from("products").select("id").eq("slug", slug).single()
-      if (!data) {
-        slugExists = false
-      } else {
-        slug = `${generateSlug(body.title)}-${counter}`
-        counter++
-      }
+    const price = Number.parseFloat(body.price || "0")
+    if (!body.price || price <= 0) {
+      return NextResponse.json({ error: "Valid price is required" }, { status: 400 })
     }
 
-    // Normalize images and main image
-    const imageUrls: string[] = Array.isArray(body.images)
-      ? (typeof body.images[0] === "string"
-          ? (body.images as string[])
-          : (body.images as Array<{ url: string }>).map((i) => i.url))
-      : []
-    const mainImageUrl = body.main_image_url || imageUrls[0] || "/diverse-products-still-life.png"
+    if (!body.collection_id && !body.category_id) {
+      return NextResponse.json({ error: "Collection/Category is required" }, { status: 400 })
+    }
+
+    const collectionId = body.collection_id || body.category_id
+
+    // Generate handle
+    const handle = generateHandle(body.title)
 
     // Convert specs array to specifications object
     let specifications: Record<string, string> | null = null
@@ -56,31 +44,27 @@ export async function POST(request: Request) {
       }
     }
 
-    // Insert product per new schema
+    // Resolve featured image
+    const imageUrls: string[] = Array.isArray(body.images)
+      ? body.images.map((i: any) => (typeof i === "string" ? i : i.url || i.image_url)).filter(Boolean)
+      : []
+    const featuredImageUrl = body.featured_image_url || imageUrls[0] || null
+
+    // Insert product with new schema
     const { data: product, error: productError } = await supabase
       .from("products")
       .insert({
         title: body.title,
-        slug,
-        short_description: body.short_description || null,
-        description: body.description || null,
-        price: Number(body.price),
-        original_price: body.original_price ? Number(body.original_price) : null,
-        currency: "INR",
-        main_image_url: mainImageUrl,
-        additional_images: imageUrls.length > 0 ? imageUrls : null,
-        rating: Number(body.rating),
-        review_count: 0,
-        youtube_video_id: body.youtube_video_id || null,
-        in_stock: body.in_stock !== false,
-        featured: body.featured || false,
-        is_published: body.in_stock !== false,
-        category_id: body.category_id,
-        brand_name: body.brand_name || null,
-        affiliate_url: body.affiliate_url,
-        specifications,
-        pros: Array.isArray(body.pros) ? body.pros : null,
-        cons: Array.isArray(body.cons) ? body.cons : null,
+        handle,
+        description: body.description || body.short_description || null,
+        description_html: body.description_html || null,
+        product_type: body.product_type || body.brand_name || null,
+        collection_id: collectionId,
+        featured_image_url: featuredImageUrl,
+        featured_image_alt_text: body.featured_image_alt_text || body.title,
+        min_price: price,
+        max_price: Number.parseFloat(body.max_price || body.original_price || body.price || "0"),
+        specifications: specifications || null,
       })
       .select()
       .single()
@@ -89,6 +73,27 @@ export async function POST(request: Request) {
       console.error("[v0] Product insert error:", productError)
       throw productError
     }
+
+    // Insert product images
+    if (imageUrls.length > 0) {
+      const imageInserts = imageUrls.map((url: string, index: number) => ({
+        product_id: product.id,
+        image_url: url,
+        alt_text: body.title,
+        display_order: index,
+      }))
+      await supabase.from("product_images").insert(imageInserts)
+    }
+
+    // Create default variant
+    await supabase.from("variants").insert({
+      product_id: product.id,
+      title: body.title,
+      sku: body.sku || null,
+      price,
+      available_for_sale: true,
+      position: 0,
+    })
 
     return NextResponse.json({ success: true, product }, { status: 201 })
   } catch (error) {

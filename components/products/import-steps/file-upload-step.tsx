@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { Upload, Download, FileSpreadsheet, AlertCircle } from "lucide-react"
 import { parseFile, type FileParseResult } from "@/lib/file-parsers"
 import { useToast } from "@/components/ui/use-toast"
+import { CSVFormatGuide } from "../csv-format-guide"
 
 type Props = {
   onNext: (result: FileParseResult) => void
@@ -73,19 +74,15 @@ export function FileUploadStep({ onNext }: Props) {
     const headers = [
       "title",
       "category",
-      "brand",
+      "brand_name",
       "price",
       "original_price",
-      "rating",
       "short_description",
       "description",
       "images",
-      "pros",
-      "cons",
       "specs",
       "in_stock",
       "featured",
-      "youtube_video_id",
     ]
 
     const exampleRow = [
@@ -94,19 +91,15 @@ export function FileUploadStep({ onNext }: Props) {
       "Sony",
       "9999.00",
       "12999.00",
-      "4.5",
       "Premium wireless headphones with noise cancellation",
-      "These headphones deliver exceptional audio quality with deep bass and crystal clear highs.",
+      "These headphones deliver exceptional audio quality with deep bass and crystal clear highs. Features active noise cancellation and 30-hour battery life.",
       "https://example.com/img1.jpg,https://example.com/img2.jpg",
-      "Great sound quality|Comfortable fit|Long battery life",
-      "Expensive|Slightly heavy",
-      "Battery:30 hours|Weight:250g|Bluetooth:5.0",
+      "Battery:30 hours|Weight:250g|Bluetooth:5.0|Driver:40mm",
       "true",
-      "false",
-      "dQw4w9WgXcQ",
+      "true",
     ]
 
-    const csv = `${headers.join(",")}\n${exampleRow.join(",")}\n`
+    const csv = `${headers.join(",")}\n${exampleRow.map((v) => `"${v}"`).join(",")}\n`
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" })
     const url = URL.createObjectURL(blob)
     const a = document.createElement("a")
@@ -174,12 +167,15 @@ export function FileUploadStep({ onNext }: Props) {
 
       {/* Info */}
       <div className="bg-muted p-4 rounded-lg">
-        <h4 className="font-semibold mb-2">File Requirements:</h4>
+        <div className="flex items-start justify-between mb-2">
+          <h4 className="font-semibold">File Requirements:</h4>
+          <CSVFormatGuide />
+        </div>
         <ul className="text-sm text-muted-foreground space-y-1 list-disc list-inside">
           <li>Maximum file size: 50MB</li>
           <li>Maximum rows: 1000 products per file</li>
           <li>Supported formats: CSV, XLS, XLSX</li>
-          <li>Required columns: title, price, category, rating</li>
+          <li>Required columns: title, price, category</li>
         </ul>
       </div>
 

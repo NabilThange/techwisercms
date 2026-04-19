@@ -82,7 +82,7 @@ export default function AddProductForm({ onSubmitted, categories = [] }: Props) 
     if (categories.length === 0) {
       fetchData()
     }
-  }, [categories.length, brands.length])
+  }, [categories.length])
 
   async function fetchData() {
     try {
@@ -113,13 +113,6 @@ export default function AddProductForm({ onSubmitted, categories = [] }: Props) 
     if (!title.trim() || title.length > 255) return "Product name is required and must be under 255 characters."
     if (!categoryId) return "Please select a category."
     if (!price || Number.parseFloat(price) <= 0) return "Valid price is required."
-    if (rating < 1 || rating > 5) return "Overall rating must be between 1 and 5."
-    try {
-      if (!affiliateUrl) return "Affiliate URL is required."
-      new URL(affiliateUrl)
-    } catch {
-      return "Affiliate URL must be a valid URL."
-    }
     return null
   }
 
@@ -142,27 +135,34 @@ export default function AddProductForm({ onSubmitted, categories = [] }: Props) 
     try {
       console.log("[v0] Submitting product...")
 
-      const productMainImage = images.length > 0 ? images[0] : "/diverse-products-still-life.png"
+      const productMainImage = images.length > 0 ? images[0] : null
 
       const productData = {
         title,
-        short_description: shortDescription || null,
-        description: description || null,
-        price,
-        original_price: originalPrice || null,
-        currency: "INR",
-        main_image_url: productMainImage,
-        rating,
-        youtube_video_id: ytId || null,
-        in_stock: publish ? inStock : false,
-        featured,
-        category_id: categoryId,
-        brand_name: brandName || null,
-        affiliate_url: affiliateUrl,
-        images: images,
-        specs: specs.filter((s) => s.key && s.value),
-        pros: pros.filter((p) => p.trim()),
-        cons: cons.filter((c) => c.trim()),
+        description: shortDescription || description || null,
+        description_html: description || null,
+        product_type: brandName || null,
+        collection_id: categoryId,
+        featured_image_url: productMainImage,
+        featured_image_alt_text: title,
+        min_price: price,
+        max_price: originalPrice || price,
+        specifications: specs.filter((s) => s.key && s.value).reduce((acc, s) => {
+          acc[s.key] = s.value
+          return acc
+        }, {} as Record<string, string>),
+        images: images.map((url, index) => ({
+          url,
+          alt_text: title,
+          display_order: index,
+        })),
+        variants: [
+          {
+            title: "Default",
+            price,
+            available_for_sale: true,
+          },
+        ],
       }
 
       const response = await fetch("/api/products", {
@@ -238,7 +238,7 @@ export default function AddProductForm({ onSubmitted, categories = [] }: Props) 
                   <SelectContent>
                     {localCategories.map((c) => (
                       <SelectItem key={c.id} value={c.id} className="text-base py-3">
-                        {c.name}
+                        {c.title || c.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -534,19 +534,6 @@ export default function AddProductForm({ onSubmitted, categories = [] }: Props) 
 
         <TabsContent value="publish" className="grid gap-6 mt-6">
           <div className="grid gap-6">
-            <div className="grid gap-3">
-              <Label htmlFor="affiliateUrl" className="text-base font-semibold">Affiliate URL *</Label>
-              <Input
-                id="affiliateUrl"
-                value={affiliateUrl}
-                onChange={(e) => setAffiliateUrl(e.target.value)}
-                className="text-base h-12 px-4"
-                placeholder="https://example.com/affiliate-link"
-                required
-              />
-              <p className="text-sm text-muted-foreground">This link is required for the product and must be a valid URL.</p>
-            </div>
-
             <div className="flex items-start gap-3 p-4 border rounded-lg">
               <Checkbox 
                 id="inStock" 
@@ -555,7 +542,7 @@ export default function AddProductForm({ onSubmitted, categories = [] }: Props) 
                 className="mt-1 h-6 w-6"
               />
               <div className="grid gap-1">
-                <Label htmlFor="inStock" className="text-base font-semibold cursor-pointer">In Stock</Label>
+                <Label htmlFor="inStock" className="text-base font-semibold cursor-pointer">Available for Sale</Label>
                 <p className="text-sm text-muted-foreground">Check this if the product is currently available</p>
               </div>
             </div>

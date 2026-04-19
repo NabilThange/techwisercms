@@ -18,7 +18,7 @@ export default async function DashboardOverview() {
 
   const [totalRes, activeRes, recentRes] = await Promise.all([
     supabaseClient.from("products").select("id", { count: "exact", head: true }),
-    supabaseClient.from("products").select("id", { count: "exact", head: true }).eq("in_stock", true),
+    supabaseClient.from("products").select("id", { count: "exact", head: true }).gt("id", ""), // Count all products as "active" (new schema doesn't have in_stock)
     supabaseClient.from("products").select("id", { count: "exact", head: true }).gte("created_at", sevenDaysAgoIso),
   ])
 

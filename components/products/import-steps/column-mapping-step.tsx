@@ -20,21 +20,16 @@ type Props = {
 
 const STANDARD_FIELDS = [
   { key: "title", label: "Title", required: true },
-  { key: "category", label: "Category", required: true },
-  { key: "brand_name", label: "Brand Name", required: false },
-  { key: "affiliate_url", label: "Affiliate URL", required: true },
+  { key: "category", label: "Category (Collection)", required: true },
   { key: "price", label: "Price", required: true },
-  { key: "original_price", label: "Original Price", required: false },
-  { key: "rating", label: "Rating", required: true },
+  { key: "brand_name", label: "Brand / Product Type", required: false },
+  { key: "original_price", label: "Max Price (for range)", required: false },
   { key: "short_description", label: "Short Description", required: false },
   { key: "description", label: "Description", required: false },
   { key: "images", label: "Images (comma-separated URLs)", required: false },
-  { key: "pros", label: "Pros (pipe-separated)", required: false },
-  { key: "cons", label: "Cons (pipe-separated)", required: false },
   { key: "specs", label: "Specs (pipe-separated key:value)", required: false },
-  { key: "in_stock", label: "In Stock", required: false },
+  { key: "in_stock", label: "Available for Sale", required: false },
   { key: "featured", label: "Featured", required: false },
-  { key: "youtube_video_id", label: "YouTube Video ID", required: false },
 ]
 
 export function ColumnMappingStep({ parseResult, onBack, onNext }: Props) {
@@ -130,7 +125,7 @@ export function ColumnMappingStep({ parseResult, onBack, onNext }: Props) {
       {!isValid && (
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
-          <AlertDescription>Please map all required fields: title, category, price, and rating</AlertDescription>
+          <AlertDescription>Please map all required fields: title, category, and price</AlertDescription>
         </Alert>
       )}
 

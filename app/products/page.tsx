@@ -488,8 +488,6 @@ const [products, setProducts] = React.useState<ProductWithCategory[]>([])
 
       if (search) params.append("search", search)
       if (category !== "all") params.append("category", category)
-      if (status === "in_stock") params.append("in_stock", "true")
-      if (status === "out_of_stock") params.append("in_stock", "false")
       if (featuredOnly) params.append("featured", "true")
 
       const response = await fetch(`/api/products?${params}`)

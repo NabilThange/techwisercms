@@ -127,7 +127,7 @@ export function ValidationStep({ parseResult, columnMapping, categories, onBack,
       {hasNewEntities && (
         <Alert>
           <AlertTriangle className="h-4 w-4" />
-          <AlertTitle>New Categories and Brands Will Be Created</AlertTitle>
+          <AlertTitle>New Categories Will Be Created</AlertTitle>
           <AlertDescription>
             <div className="mt-2 space-y-2">
               {validationResult.newCategories.length > 0 && (
@@ -171,7 +171,7 @@ export function ValidationStep({ parseResult, columnMapping, categories, onBack,
                   <TableHead className="w-12">Row</TableHead>
                   <TableHead>Title</TableHead>
                   <TableHead>Category</TableHead>
-                  <TableHead>Brand Name</TableHead>
+                  <TableHead>Product Type</TableHead>
                   <TableHead>Price</TableHead>
                   <TableHead>Status</TableHead>
                 </TableRow>
@@ -185,7 +185,7 @@ export function ValidationStep({ parseResult, columnMapping, categories, onBack,
                       <TableCell>{row.rowNumber}</TableCell>
                       <TableCell className="font-medium">{row.data.title}</TableCell>
                       <TableCell>{row.data.category}</TableCell>
-                      <TableCell>{row.data.brand_name || row.data.brand || "-"}</TableCell>
+                      <TableCell>{row.data.product_type || row.data.brand_name || row.data.brand || "-"}</TableCell>
                       <TableCell>₹{row.data.price}</TableCell>
                       <TableCell>
                         <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">

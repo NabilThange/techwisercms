@@ -49,12 +49,10 @@ export async function validateImportData(
     }
 
     if (!data.rating || data.rating === "") {
-      errors.push({ row: rowNumber, field: "rating", message: "Rating is required" })
+      // rating not required in new schema — skip validation
     } else {
       const ratingNum = Number.parseFloat(data.rating)
-      if (Number.isNaN(ratingNum) || ratingNum < 1 || ratingNum > 5) {
-        errors.push({ row: rowNumber, field: "rating", message: "Rating must be between 1 and 5" })
-      } else {
+      if (!Number.isNaN(ratingNum) && ratingNum >= 1 && ratingNum <= 5) {
         data.rating = ratingNum
       }
     }
@@ -62,18 +60,19 @@ export async function validateImportData(
     if (!data.category || data.category === "") {
       errors.push({ row: rowNumber, field: "category", message: "Category is required" })
     } else {
-      // Check if category exists or needs to be created
-      const categoryExists = categories.some((c) => c.name.toLowerCase() === String(data.category).toLowerCase())
+      // Check if category exists — match against both title (new) and name (legacy)
+      const categoryExists = categories.some(
+        (c) =>
+          (c.title || c.name).toLowerCase() === String(data.category).toLowerCase()
+      )
       if (!categoryExists) {
         newCategories.add(String(data.category))
         warnings.push(`Category "${data.category}" will be created`)
       }
     }
 
-    // Validate affiliate_url (required)
-    if (!data.affiliate_url || data.affiliate_url === "") {
-      errors.push({ row: rowNumber, field: "affiliate_url", message: "Affiliate URL is required" })
-    } else {
+    // affiliate_url is optional in new schema
+    if (data.affiliate_url && data.affiliate_url !== "") {
       try {
         new URL(data.affiliate_url)
       } catch {
@@ -113,20 +112,6 @@ export async function validateImportData(
       data.images = imageUrls
     }
 
-    if (data.pros && data.pros !== "") {
-      data.pros = data.pros
-        .split("|")
-        .map((p: string) => p.trim())
-        .filter((p: string) => p !== "")
-    }
-
-    if (data.cons && data.cons !== "") {
-      data.cons = data.cons
-        .split("|")
-        .map((c: string) => c.trim())
-        .filter((c: string) => c !== "")
-    }
-
     if (data.specs && data.specs !== "") {
       const specPairs = data.specs.split("|").map((s: string) => s.trim())
       const specs: Array<{ key: string; value: string }> = []
@@ -139,30 +124,15 @@ export async function validateImportData(
       data.specs = specs
     }
 
-    // Parse boolean fields
+    // Parse boolean fields (not used in new schema, but keep for backward compatibility)
     if (data.in_stock !== undefined && data.in_stock !== "") {
       const stockValue = data.in_stock.toLowerCase()
       data.in_stock = ["true", "1", "yes"].includes(stockValue)
-    } else {
-      data.in_stock = true
     }
 
     if (data.featured !== undefined && data.featured !== "") {
       const featuredValue = data.featured.toLowerCase()
       data.featured = ["true", "1", "yes"].includes(featuredValue)
-    } else {
-      data.featured = false
-    }
-
-    // Parse YouTube video ID
-    if (data.youtube_video_id && data.youtube_video_id !== "") {
-      const ytValue = data.youtube_video_id.trim()
-      if (ytValue.includes("youtube.com") || ytValue.includes("youtu.be")) {
-        const match = ytValue.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\s]+)/)
-        if (match) {
-          data.youtube_video_id = match[1]
-        }
-      }
     }
 
     if (warnings.length > 0) {

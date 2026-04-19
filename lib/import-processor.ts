@@ -59,27 +59,23 @@ export async function performBulkImport(
       onProgress(currentIndex, validRows.length, `Importing product ${currentIndex} of ${validRows.length}...`)
 
       try {
-        // Find category ID by name
-        const category = categories.find((c: any) => c.name.toLowerCase() === String(row.data.category).toLowerCase())
+        // Find category/collection ID by name — match title (new) or name (legacy)
+        const category = categories.find(
+          (c: any) => (c.title || c.name).toLowerCase() === String(row.data.category).toLowerCase()
+        )
 
         const productData = {
           title: row.data.title,
-          category_id: category?.id,
-          brand_name: row.data.brand || row.data.brand_name || null,
-          affiliate_url: row.data.affiliate_url,
+          collection_id: category?.id,
+          product_type: row.data.brand_name || row.data.brand || null,
           price: row.data.price,
-          original_price: row.data.original_price || null,
-          rating: row.data.rating,
-          short_description: row.data.short_description || null,
-          description: row.data.description || null,
+          max_price: row.data.original_price || null,
+          description: row.data.short_description || row.data.description || null,
+          description_html: row.data.description || null,
           images: row.data.images || [],
-          pros: row.data.pros || [],
-          cons: row.data.cons || [],
           specs: row.data.specs || [],
           in_stock: row.data.in_stock !== false,
           featured: row.data.featured || false,
-          youtube_video_id: row.data.youtube_video_id || null,
-          main_image_url: row.data.images?.[0] || null,
         }
 
         const response = await fetch("/api/products/import", {
